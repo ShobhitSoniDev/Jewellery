@@ -1,0 +1,136 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  background: #f4f4f4;
+}
+
+.dashboard {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+
+/* Header */
+.header {
+  background: #fff;
+  padding: 15px 20px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile img {
+  border-radius: 50%;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.card h3 {
+  margin-top: 6px;
+}
+
+.card.green h3 { color: #2ecc71; }
+.card.red h3 { color: #e74c3c; }
+.card.orange h3 { color: #f39c12; }
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #fff;
+}
+
+.btn.primary {
+  background: linear-gradient(90deg, #e6b45c, #c78b2c);
+  color: white;
+}
+
+/* Table */
+.tableBox {
+  background: #fff;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+}
+
+th {
+  background: #f7f7f7;
+}
+
+tr:not(:last-child) {
+  border-bottom: 1px solid #eee;
+}
+
+/* Status */
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: white;
+}
+
+.badge.green { background: #27ae60; }
+.badge.orange { background: #f39c12; }
+.badge.red { background: #e74c3c; }
+
+/* Tabs */
+.tabs {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  gap: 20px;
+  padding: 12px;
+}
+
+.tabs span {
+  cursor: pointer;
+  color: #777;
+}
+
+.tabs .active {
+  font-weight: 600;
+  color: #c78b2c;
+}

@@ -1,33 +1,43 @@
 import Link from 'next/link';
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { FaGem, FaUser, FaEnvelope, FaLock } from "react-icons/fa";
 import { useRouter } from "next/router";
-import { handleDecimalBlur_Weight, handleDecimalInput_Weight } from "@/utils/inputValidation";
+import { commonInputValidator } from "@/utils/inputValidation";
+import { ProductMaster_Manage } from "@/lib/services/MasterService";
+import { StockTransaction_Manage } from "@/lib/services/TransactionsService";
+import Swal from "sweetalert2";
+
+
 
 const AddProduct = () => {
     const router = useRouter();
      
-      const [productname, setproductname] = useState("");
-      const [transactiontype, settransactiontype] = useState("");
+      const [ProductList, setProductList] = useState([]);
+      const [selectedProduct, setselectedProduct] = useState("");
+      const [transactionTypeList, settransactionTypeList] = useState([]);
+      const [selectedTransactionType, setselectedTransactionType] = useState("");
+      const [referencetypeList, setreferencetypeList] = useState([]);
       const [netweight, setnetweight] = useState("");
       const [totalquantity, settotalquantity] = useState("");
-      const [referencetype, setreferencetype] = useState("");
+      const [selectedreferencetype, setSelectedreferencetype] = useState("");
       const [referenceno, setreferenceno] = useState("");
       const [transactiondate, settransactiondate] = useState("");
+      const [stockList, setStockList] = useState([]);
+      const [editId, setEditId] = useState(null);
        const [error , setError] = useState({
-        productname:"",transactiontype:"",netweight:"",totalquantity:"",
-        referencetype:"",referenceno:"",totalquantity:"",transactiondate:"",
+        ProductList:"",transactionTypeList:"",netweight:"",totalquantity:"",
+        referencetypeList:"",referenceno:"",totalquantity:"",transactiondate:"",
     });
       const handleValidation = (e) => {
         const newErrors= {};
         let flag = true;
-        
-        if(productname===""){
-          newErrors.productname="Product Name is required"
+        debugger
+        if(selectedProduct===""){
+          newErrors.ProductList="Product Name is required"
             flag = false;
         }
-        if(transactiontype===""){
-          newErrors.transactiontype="Transaction Type is required"
+        if(selectedTransactionType===""){
+          newErrors.transactionTypeList="Transaction Type is required"
             flag = false;
         }
         if(netweight===""){
@@ -38,8 +48,8 @@ const AddProduct = () => {
           newErrors.totalquantity="Total Quantity is required"
             flag = false;
         }
-        if(referencetype===""){
-          newErrors.referencetype="Reference Type is required"
+        if(selectedreferencetype===""){
+          newErrors.selectedreferencetype="Reference Type is required"
             flag = false;
         }
         if(referenceno===""){
@@ -53,78 +63,143 @@ const AddProduct = () => {
         setError(newErrors);
         return flag;
        };
-       const handleSubmit = ()=>{
-
-let isValid = handleValidation();
-debugger;
-   if (isValid) {
-    alert("Stock Transaction Added Successfully");
-    // Clear form fields
-    setproductname("");
-    settransactiontype("");
+        const handleSubmit = async () => {
+              
+                  if (!handleValidation()) return;
+                    const payload = {
+                    StockId: 0,
+                    ProductId: Number(selectedProduct),
+                    TransactionType: selectedTransactionType,
+                    Quantity: Number(totalquantity),
+                    Weight: Number(netweight),
+                    ReferenceType: selectedreferencetype,
+                    ReferenceNo: referenceno,
+                    TransactionDate: transactiondate,
+                    TypeId: editId ? 2 : 1, // 1=Add, 2=Update
+                  };
+              
+                  try {
+              
+                    const response = await StockTransaction_Manage(payload);
+              
+                    if (response?.data && response?.data[0]?.Code === 1) {
+                    
+                          await Swal.fire({
+                            icon: "success",
+                            title: "Saved!",
+                            text: response?.data[0].Message || "Saved successfully",
+                            confirmButtonColor: "#3085d6"
+                          });
+                    resetForm();
+                    loadStockList();
+                        } else {
+                    
+                          Swal.fire({
+                            icon: "error",
+                            title: "Error!",
+                            text: response?.data[0].Message || "Failed to save",
+                            confirmButtonColor: "#3085d6"
+                          });
+                        }
+                    
+                      } catch (error) {
+                        console.error(error);
+                    
+                        Swal.fire({
+                          icon: "error",
+                          title: "Error!",
+                          text: "Failed to save category",
+                          confirmButtonColor: "#3085d6"
+                        });
+                      }
+                    };
+                    const resetForm = () => {
+    setselectedProduct("");
+    setselectedTransactionType("");
     settotalquantity("");
     setnetweight("");
-    setreferencetype("");
+    setSelectedreferencetype("");
     setreferenceno("");
     settransactiondate("");
+    setEditId(null);
     setError({
-        productname:"",
-        transactiontype:"",
+        selectedProduct:"",
+        selectedTransactionType:"",
         netweight:"",
         totalquantity:"",
-        referencetype:"",
+        selectedreferencetype:"",
         referenceno:"",
         transactiondate:"",
     });
-   }
-}
+                    }
 const handleCancel = () => {
-    setproductname("");
-    settransactiontype("");
-    settotalquantity("");
-    setnetweight("");
-    setreferencetype("");
-    setreferenceno("");
-    settransactiondate("");
-    setError({
-        productname:"",
-        transactiontype:"",
-        netweight:"",
-        totalquantity:"",
-        referencetype:"",
-        referenceno:"",
-        transactiondate:"",
-    });
+    resetForm();
 };
-const gridData = [
-    {
-      productName: "Payal Fancy",
-      transactionType: "IN",
-      totalQty: 2,
-      netWeight: "66.50",
-      referenceType: "PURCHASE",
-      billNo: "BI001",
-      transactionDate: "15-01-2026"
-    },
-    {
-      productName: "Chain Gold",
-      transactionType: "OUT",
-      totalQty: 1,
-      netWeight: "20.10",
-      referenceType: "SALE",
-      billNo: "SI045",
-      transactionDate: "16-01-2026"
-    },
-    {
-      productName: "Chain Silver",
-      transactionType: "OUT",
-      totalQty: 1,
-      netWeight: "32.10",
-      referenceType: "SALE",
-      billNo: "SI045",
-      transactionDate: "16-01-2026"
-    }
-  ];
+
+
+   const loadProductList = async () => {
+       try {
+         const payload = {
+               ProductId: 0,
+                typeId: 4, // 1=Add, 2=Update
+              };
+   
+         const response = await ProductMaster_Manage(payload);
+         setProductList(response?.data || []);
+   
+       } catch (error) {
+         console.error("Error loading product list", error);
+       }
+     };
+     const loadtransactionTypeList = async () => {
+       try {
+         const payload = {
+               ProductId: 0,
+                typeId: 5,
+              };
+   
+         const response = await StockTransaction_Manage(payload);
+         settransactionTypeList(response?.data || []);
+   
+       } catch (error) {
+         console.error("Error loading transaction type list", error);
+       }
+     };
+     const loadreferencetypeList = async () => {
+       try {
+         const payload = {
+               ProductId: 0,
+                typeId: 6,
+              };
+   
+         const response = await StockTransaction_Manage(payload);
+         setreferencetypeList(response?.data || []);
+   
+       } catch (error) {
+         console.error("Error loading reference type list", error);
+       }
+     };
+  const loadStockList = async () => {
+       try {
+         const payload = {
+               ProductId: 0,
+                typeId: 4, 
+              };
+   
+         const response = await StockTransaction_Manage(payload);
+         setStockList(response?.data || []);
+   
+       } catch (error) {
+         console.error("Error loading stock list", error);
+       }
+     };
+       useEffect(() => {
+           loadProductList();
+           loadtransactionTypeList();
+           loadreferencetypeList();
+           loadStockList();
+         }, []);
+         
   return (
       <div className="content-wrapper">
         
@@ -138,42 +213,47 @@ const gridData = [
         <label>Product Name</label>
         <select
         className='dropdown-select'
-        value={productname}
+        value={selectedProduct}
         onChange={(e) => {
-              setproductname(e.target.value);
+              setselectedProduct(e.target.value);
               
               if (e.target.value !== "") {
-                setError((prev) => ({ ...prev, productname: "" }));
+                setError((prev) => ({ ...prev, ProductList: "" }));
               }
             }}
       >
         <option value="">-- Select --</option>
-        <option value="ringfancy">Ring Fancy</option>
-        <option value="payalfancy">Payal Fancy</option>
-        <option value="nechleshwithstone">Nechlesh with stone</option>
-      </select>
-      <p style={{color:"red"}}>{error?.productname}</p>
+        {ProductList.map((item) => (
+  <option key={item.ProductId} value={item.ProductId}>
+    {item.ProductName}
+  </option>
+))}
+  </select>
+      <p style={{color:"red"}}>{error?.ProductList}</p>
       </div>
 
       <div class="form-group">
         <label>Transaction Type</label>
         <select
         className='dropdown-select'
-        value={transactiontype}
+        value={selectedTransactionType}
         onChange={(e) => {
-              settransactiontype(e.target.value);
+              setselectedTransactionType(e.target.value);
               
               if (e.target.value !== "") {
-                setError((prev) => ({ ...prev, transactiontype: "" }));
+                setError((prev) => ({ ...prev, transactionTypeList: "" }));
               }
             }}
             
       >
         <option value="">-- Select --</option>
-        <option value="in">IN</option>
-        <option value="out">OUT</option>
-      </select>
-      <p style={{color:"red"}}>{error?.transactiontype}</p>
+        {transactionTypeList.map((item) => (
+    <option key={item.TransactionTypeId} value={item.TransactionTypeId}>
+      {item.TransactionType}
+    </option>
+  ))}
+  </select>
+      <p style={{color:"red"}}>{error?.transactionTypeList}</p>
       </div>
       
     </div>
@@ -181,25 +261,33 @@ const gridData = [
       <div class="form-group">
         <label>Total Quantity</label>
         <input type="text" placeholder="Enter total quantity" value={totalquantity} onChange={(e) => {
-    // sirf numbers allow
-    let val = e.target.value.replace(/[^0-9]/g, "");
+                          const val = e.target.value;
+                      
+                          const result = commonInputValidator(val , {
+                        numeric: true,
+                        allowDecimal : false,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:3
+                      });
+                          if (result === true) {
+                            settotalquantity(val);
+                            setError((prev) => ({ ...prev, totalquantity: "" }));
+                          } else {
+                            setError((prev) => ({ ...prev, totalquantity: result }));
+                          }
+                        }} onBlur={() => {
+    // 🔍 final validation
+    const result = commonInputValidator(totalquantity, {
+      numeric: false,
+                        allowDecimal : false,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:3
+    });
 
-    // empty allow (backspace ke liye)
-    if (val === "") {
-      settotalquantity("");
-      setError((prev) => ({ ...prev, totalquantity: "" }));
-      return;
-    }
-    // ❌ starting with zero not allowed (0, 01, 0.5)
-    if (val.length === 1 && val === "0") return;
-    if (val.startsWith("0") && !val.startsWith("0.")) return;
-    if (val.startsWith("0.")) return;
-    const num = Number(val);
-
-    // sirf 1 se 1000 ke beech
-    if (num >= 1 && num <= 1000) {
-      settotalquantity(val);
-      setError((prev) => ({ ...prev, totalquantity: "" }));
+    if (result === true) {
+            setError((prev) => ({ ...prev, totalquantity: "" }));
     }
     
   }}/>
@@ -211,16 +299,37 @@ const gridData = [
   type="text"
   placeholder="Enter net weight"
   value={netweight}
-  onChange={(e) =>
-      handleDecimalInput_Weight(
-        e.target.value,
-        setnetweight,
-        setError,
-        "netweight"
-      )
-    }
-    onBlur={() => handleDecimalBlur_Weight(netweight, setnetweight)}/>
+  onChange={(e) => {
+                          const val = e.target.value;
+                      
+                          const result = commonInputValidator(val , {
+                        numeric: true,
+                        allowDecimal : true,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:20
+                      });
+                          if (result === true) {
+                            setnetweight(val);
+                            setError((prev) => ({ ...prev, netweight: "" }));
+                          } else {
+                            setError((prev) => ({ ...prev, netweight: result }));
+                          }
+                        }} onBlur={() => {
+    // 🔍 final validation
+    const result = commonInputValidator(netweight, {
+      numeric: false,
+                        allowDecimal : false,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:20
+    });
 
+    if (result === true) {
+            setError((prev) => ({ ...prev, netweight: "" }));
+    }
+    
+  }}/>
         <p style={{color:"red"}}>{error?.netweight}</p>
       </div>
       </div>
@@ -229,32 +338,58 @@ const gridData = [
         <label>Reference Type</label>
         <select
         className='dropdown-select'
-        value={referencetype}
+        value={selectedreferencetype}
         onChange={(e) => {
-              setreferencetype(e.target.value);
+              setSelectedreferencetype(e.target.value);
               
               if (e.target.value !== "") {
-                setError((prev) => ({ ...prev, referencetype: "" }));
+                setError((prev) => ({ ...prev, selectedreferencetype: "" }));
               }
             }}
       >
-        <option value="">-- Select --</option>
-        <option value="PURCHASE">PURCHASE</option>
-        <option value="SALE">SALE</option>
-        <option value="ADJUSTMENT">ADJUSTMENT</option>
-      </select>
-      <p style={{color:"red"}}>{error?.referencetype}</p>
+       <option value="">-- Select --</option>
+        {referencetypeList.map((item) => (
+    <option key={item.ReferenceTypeId} value={item.ReferenceTypeId}>
+      {item.ReferenceType}
+    </option>
+  ))}
+  </select>
+      <p style={{color:"red"}}>{error?.selectedreferencetype}</p>
       </div>
 
       <div class="form-group">
         <label>Reference/Bill No</label>
         <input type="text" placeholder="Reference/Bill No" value={referenceno} onChange={(e) => {
-              setreferenceno(e.target.value);
-              
-              if (e.target.value !== "") {
-                setError((prev) => ({ ...prev, referenceno: "" }));
-              }
-            }}/>
+                          const val = e.target.value;
+                      
+                          const result = commonInputValidator(val , {
+                        numeric: false,
+                        allowDecimal : false,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:20
+                      });
+                          if (result === true) {
+                            setreferenceno(val);
+                            setError((prev) => ({ ...prev, referenceno: "" }));
+                          } else {
+                            setError((prev) => ({ ...prev, referenceno: result }));
+                          }
+                        }} onBlur={() => {
+    // 🔍 final validation
+    const result = commonInputValidator(referenceno, {
+      numeric: false,
+                        allowDecimal : false,
+                        maxDecimalPlaces: 2,
+                        minLength:1,
+                        maxLength:20
+    });
+
+    if (result === true) {
+            setError((prev) => ({ ...prev, referenceno: "" }));
+    }
+    
+  }}/>
         <p style={{color:"red"}}>{error?.referenceno}</p>
       </div>
       
@@ -280,7 +415,7 @@ const gridData = [
       </div>
       </div>
  <div className="btn-group">
-            <button className="btn-primary" onClick={handleSubmit}>Add Product</button>
+            <button className="btn-primary" onClick={handleSubmit}>Add Stock Transaction</button>
             <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
           </div>
     </div>
@@ -302,16 +437,16 @@ const gridData = [
             </thead>
 
             <tbody>
-              {gridData.map((item, index) => (
+              {stockList.map((item, index) => (
           <tr key={index}>
             <td>{index + 1}</td>
-            <td>{item.productName}</td>
-            <td>{item.transactionType}</td>
-            <td>{item.totalQty}</td>
-            <td>{item.netWeight}</td>
-            <td>{item.referenceType}</td>
-            <td>{item.billNo}</td>
-            <td>{item.transactionDate}</td>
+            <td>{item.ProductName}</td>
+            <td>{item.TransactionType}</td>
+            <td>{item.Quantity}</td>
+            <td>{item.Weight}</td>
+            <td>{item.ReferenceType}</td>
+            <td>{item.ReferenceNo}</td>
+            <td>{item.TransactionDate}</td>
           </tr>
         ))}
             </tbody>

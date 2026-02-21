@@ -78,7 +78,30 @@
   border-radius: 10px;
   cursor: pointer;
 }
-
+.btn-danger {
+  background: #e74c3c;
+  border: none;
+  padding: 12px 26px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.btn-edit-grid {
+  background: #e1aa2b;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+.btn-danger-grid {
+  background: #e74c3c;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
 /* Table */
 .table-card {
   background: #fff;

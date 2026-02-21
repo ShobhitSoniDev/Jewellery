@@ -57,8 +57,9 @@ export const commonInputValidator = (value, options = {}) => {
   const {
     numeric = true,
     allowDecimal = true,
-    maxDigits = 10,
-    maxDecimalPlaces = 2
+    maxDecimalPlaces = 2,
+    minLength = 1,
+    maxLength = 50
   } = options;
 
   // ❌ negative value not allowed
@@ -87,8 +88,8 @@ export const commonInputValidator = (value, options = {}) => {
 
     // max digits (excluding decimal)
     const digitCount = value.replace(".", "").length;
-    if (digitCount > maxDigits) {
-      return `Maximum ${maxDigits} digits allowed`;
+    if (digitCount > maxLength) {
+      return `Maximum ${maxLength} digits allowed`;
     }
 
     // max decimal places
@@ -108,15 +109,25 @@ export const commonInputValidator = (value, options = {}) => {
 
     return true;
   }
-
+else {
   /* =========================
      ALPHANUMERIC MODE
   ==========================*/
   // allow alphabets + numbers + space
-  const alphaNumRegex = /^[a-zA-Z0-9 ]+$/;
-  if (!alphaNumRegex.test(value)) {
-    return "Special characters not allowed";
+  const charRegex = /^[a-zA-Z0-9 ]+$/;
+  if (!charRegex.test(value)) {
+    return "Special characters are not allowed";
   }
 
+  // min length
+  if (value.length < minLength) {
+    return `Minimum ${minLength} characters required`;
+  }
+
+  // max length
+  if (value.length > maxLength) {
+    return `Maximum ${maxLength} characters allowed`;
+  }
+}
   return true;
 };

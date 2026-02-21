@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { FaUserCircle, FaSignOutAlt,FaGem } from "react-icons/fa";
 import Link from 'next/link';
+import { LogoutUser } from "@/lib/services/AuthService";
 export default function DashboardLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(true);
 
@@ -22,6 +23,32 @@ export default function DashboardLayout({ children }) {
     return () =>
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+const handleLogout = async () => {
+  try {
+    debugger;
+      const payload = {
+    UserId: sessionStorage.getItem("username") || "" // Assuming you have the username stored in session storage  
+  };
+    const response = await LogoutUser(payload);
+
+    if (response.code === 1) {
+      alert(response.message || "Logout successful");
+
+      // ✅ token remove
+      sessionStorage.clear();
+
+      // ✅ redirect
+      router.push("/login");
+    }
+  } catch (error) {
+    console.error("Logout Error:", error);
+
+    // API fail ho tab bhi logout kar dena chahiye
+    sessionStorage.clear();
+    router.push("/login");
+  }
+};
+
   return (
     <div className={`dashboardLayout ${menuOpen ? "menu-open" : "menu-close"}`}>
       
@@ -94,7 +121,7 @@ export default function DashboardLayout({ children }) {
        <div className="profileDropdown">
           <div className="menuItem profile" onClick={() => router.push("/profile")}><FaUserCircle />Profile</div>
           
-          <div className="menuItem logout" onClick={() => router.push("/login")}><FaSignOutAlt />Logout</div>
+          <div className="menuItem logout" onClick={handleLogout}><FaSignOutAlt />Logout</div>
         </div>
       )}
     </div>

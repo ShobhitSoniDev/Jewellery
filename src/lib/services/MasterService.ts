@@ -54,7 +54,6 @@ export interface AddCategoryPayload {
 
 export const CategoryMaster_Manage = async (payload: AddCategoryPayload) => {
   try {
-  debugger
     // ✅ Get token from sessionStorage
     const token = sessionStorage.getItem("token");
     // ✅ Call API with Authorization header
@@ -92,7 +91,6 @@ export interface AddProductPayload {
 
 export const ProductMaster_Manage = async (payload: AddProductPayload) => {
   try {
-  debugger
     // ✅ Get token from sessionStorage
     const token = sessionStorage.getItem("token");
     // ✅ Call API with Authorization header
@@ -111,4 +109,23 @@ export const ProductMaster_Manage = async (payload: AddProductPayload) => {
    console.log("ERROR FULL => ", error.response);
    console.log("ERROR DATA => ", error.response?.data);
 }
+};
+export const getMenu = async () => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.get(
+      API_ENDPOINTS.Master.GetMenu_URL,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.log("ERROR => ", error?.response?.data);
+    throw error?.response?.data;
+  }
 };

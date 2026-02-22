@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     SignUp_URL: "/auth/signup",
   },
   Master: {
+    GetMenu_URL: "/master/GetMenu",
     MetalMaster_Manage_URL: "/master/MetalMaster_Manage",
     CategoryMaster_Manage_URL: "/master/CategoryMaster_Manage",
     ProductMaster_Manage_URL: "/master/ProductMaster_Manage",

@@ -129,3 +129,43 @@ export const getMenu = async () => {
     throw error?.response?.data;
   }
 };
+
+export interface AddCustomerPayload {
+  customerId: string;
+  customerName: string;
+  mobileNo: string;
+  email: string;
+  address: string;
+  city: string;
+  pincode: number;
+  typeId: number;
+}
+
+
+export const CustomerMaster_Manage = async (payload: AddCustomerPayload) => {
+  try {
+    debugger
+    // Get token
+    const token = sessionStorage.getItem("token");
+
+    // API call
+    const response = await api.post(
+      API_ENDPOINTS.Master.CustomerMaster_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+
+    throw error; // important for frontend catch
+  }
+};

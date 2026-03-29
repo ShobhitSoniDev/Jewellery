@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { commonInputValidator } from "@/utils/inputValidation";
 import { getMetalList, CategoryMaster_Manage } from "@/lib/services/MasterService";
 import Swal from "sweetalert2";
+import ProtectedRoute from "@/components/ProtectedRoute";
 const AddCategory = () => {
 
   const router = useRouter();
@@ -216,6 +217,7 @@ const AddCategory = () => {
   /* ---------------- UI ---------------- */
 
   return (
+    <ProtectedRoute>
     <div className="content-wrapper">
 
       <div className="form-card">
@@ -328,6 +330,7 @@ const AddCategory = () => {
         </table>
       </div>
     </div>
+    </ProtectedRoute>
   );
 };
 

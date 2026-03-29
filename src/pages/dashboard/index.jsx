@@ -1,8 +1,8 @@
 "use client";
-
+import ProtectedRoute from "@/components/ProtectedRoute";
 export default function DashboardPage() {
   return (
-    <>
+    <ProtectedRoute>
       {/* Stats */}
       <div className="stats">
         <div className="statCard">Total Items <h3>320</h3></div>
@@ -56,6 +56,6 @@ export default function DashboardPage() {
           </tbody>
         </table>
       </div>
-    </>
+    </ProtectedRoute>
   );
 }

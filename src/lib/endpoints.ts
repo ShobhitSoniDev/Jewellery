@@ -12,8 +12,13 @@ export const API_ENDPOINTS = {
     GetAllMetals_URL: "/master/GetAllMetals",
     GetAllCategories_URL: "/master/GetAllCategories",
     GetAllProducts_URL: "/master/GetAllProducts",
+    CustomerMaster_Manage_URL: "/master/CustomerMaster_Manage",
   },
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",
+  }
+  ,
+  AI: {
+    FAQMaster_URL: "/ai/FAQMaster_Manage",
   }
 } as const;

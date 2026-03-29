@@ -6,7 +6,7 @@ import { commonInputValidator } from "@/utils/inputValidation";
 import { ProductMaster_Manage } from "@/lib/services/MasterService";
 import { StockTransaction_Manage } from "@/lib/services/TransactionsService";
 import Swal from "sweetalert2";
-
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 
 const AddProduct = () => {
@@ -201,6 +201,7 @@ const handleCancel = () => {
          }, []);
          
   return (
+    <ProtectedRoute>
       <div className="content-wrapper">
         
         {/* Form Card */}
@@ -454,7 +455,7 @@ const handleCancel = () => {
         </div>
 
       </div>
-   
+   </ProtectedRoute>
   );
 };
 

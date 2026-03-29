@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { handleDecimalBlur_Weight, handleDecimalInput_Weight,commonInputValidator,runValidators } from "@/utils/inputValidation";
 import { getMetalList, CategoryMaster_Manage,ProductMaster_Manage } from "@/lib/services/MasterService";
 import Swal from "sweetalert2";
+import ProtectedRoute from "@/components/ProtectedRoute";
 const AddProduct = () => {
     const router = useRouter();
     const [buttonName, setButtonName] = useState("Add Product");
@@ -273,6 +274,7 @@ debugger
 };
 /* ---------------- UI ---------------- */
   return (
+    <ProtectedRoute>
       <div className="content-wrapper">
         
         {/* Form Card */}
@@ -672,7 +674,7 @@ debugger
         </div>
 
       </div>
-   
+   </ProtectedRoute>
   );
 };
 

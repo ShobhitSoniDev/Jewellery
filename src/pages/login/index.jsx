@@ -45,7 +45,7 @@ const handleLogin = async (event) => {
     if (response.code === 1) {
       sessionStorage.setItem("token", response.data); // token
       router.push("/dashboard");
-      alert(response.message || "Login successful ✅");
+      // alert(response.message || "Login successful ✅");
     } else {
       setError(response.message || "Login failed ❌");
     }

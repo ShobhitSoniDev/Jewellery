@@ -1,185 +1,402 @@
-"use client"; // IMPORTANT for app router
+"use client";
 
+// ---------------- IMPORTS ----------------
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
-import { FaUserCircle, FaSignOutAlt,FaHome, FaGem, FaBoxes, FaBox, FaExchangeAlt, FaUsers   } from "react-icons/fa";
-import Link from 'next/link';
+import {
+  FaUserCircle,
+  FaSignOutAlt,
+  FaGem,
+  FaBoxes,
+  FaBox,
+  FaExchangeAlt,
+  FaHome
+} from "react-icons/fa";
+import Link from "next/link";
 import { LogoutUser } from "@/lib/services/AuthService";
 import { getMenu } from "@/lib/services/MasterService";
+import Chatbot from "@/components/Chatbot";
 
-// useEffect(() => {
-//   fetch("/api/menu")
-//     .then(res => res.json())
-//     .then(data => setMenuItems(data));
-// }, []);
 export default function DashboardLayout({ children }) {
 
-  const iconMap = {
-  FaHome: FaHome,
-  FaGem: FaGem,
-  FaBoxes: FaBoxes,
-  FaBox: FaBox,
-  FaExchangeAlt: FaExchangeAlt
-};
-  const [menuOpen, setMenuOpen] = useState(true);
-
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
+  // ---------------- ROUTER ----------------
   const router = useRouter();
- const [menuItems, setMenuItems] = useState([]);
-  // outside click close
+
+  // ---------------- ICON MAPPING ----------------
+  const iconMap = {
+    FaHome,
+    FaGem,
+    FaBoxes,
+    FaBox,
+    FaExchangeAlt
+  };
+
+  // ---------------- STATE MANAGEMENT ----------------
+  const [menuOpen, setMenuOpen] = useState(true); // sidebar toggle
+  const [menuItems, setMenuItems] = useState([]); // menu list from API
+
+  const [open, setOpen] = useState(false); // profile dropdown
+  const menuRef = useRef(null);
+
+  // ---------------- SEARCH STATES ----------------
+  const [searchText, setSearchText] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // ---------------- VOICE STATES ----------------
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  // ---------------- LOAD MENU ----------------
   useEffect(() => {
     loadMenuItems();
+
+    // close profile dropdown on outside click
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-const handleLogout = async () => {
-  try {
-    debugger;
-      const payload = {
-    UserId: sessionStorage.getItem("username") || "" // Assuming you have the username stored in session storage  
+
+  const loadMenuItems = async () => {
+    try {
+      const response = await getMenu();
+      setMenuItems(response.data || []);
+    } catch (error) {
+      console.error("Error loading menu items:", error);
+    }
   };
-    const response = await LogoutUser(payload);
 
-    if (response.code === 1) {
-      alert(response.message || "Logout successful");
+  // ---------------- LOGOUT ----------------
+  const handleLogout = async () => {
+    try {
+      const payload = {
+        UserId: sessionStorage.getItem("username") || ""
+      };
 
-      // ✅ token remove
+      const response = await LogoutUser(payload);
+
+      if (response.code === 1) {
+        sessionStorage.clear();
+        router.push("/login");
+      }
+    } catch (error) {
       sessionStorage.clear();
-
-      // ✅ redirect
       router.push("/login");
     }
-  } catch (error) {
-    console.error("Logout Error:", error);
+  };
 
-    // API fail ho tab bhi logout kar dena chahiye
-    sessionStorage.clear();
-    router.push("/login");
-  }
-};
-const loadMenuItems = async () => {
-  try {
-    const response = await getMenu();
-    console.log("MENU RESPONSE => ", response);
-    setMenuItems(response.data || []);
-  } catch (error) {
-    console.error("Error loading menu items:", error);
-  }
-};
-// const menuItems = [
-//   { id: 1, name: "Home", path: "/dashboard", icon: "🏠" },
-//   { id: 2, name: "Add Metal", path: "/metalmaster", icon: "💎" },
-//   { id: 3, name: "Add Category", path: "/categorymaster", icon: "📦" },
-//   { id: 4, name: "Add Product", path: "/productmaster", icon: "📦" },
-//   { id: 5, name: "Stock Transaction", path: "/stocktransaction", icon: "📦" },
-//   { id: 6, name: "Customer Master", path: "/customer", icon: "�" }
-// ];
+  // ---------------- GET SUGGESTIONS ----------------
+  const getSuggestions = (input) => {
+    if (!input) return [];
+
+    const text = input.toLowerCase();
+
+    return menuItems.filter((m) => {
+      const name = (m.MenuName || "").toLowerCase();
+
+      return (
+        name.includes(text) ||
+        text.includes(name) ||
+        name.replace("add", "").includes(text) ||
+        name.replace("master", "").includes(text)
+      );
+    });
+  };
+
+  // ---------------- HANDLE INPUT CHANGE ----------------
+  const handleInputChange = (value) => {
+    setSearchText(value);
+
+    const result = getSuggestions(value);
+
+    setSuggestions(result);
+    setShowSuggestions(true);
+    setActiveIndex(-1); // reset highlight
+  };
+
+  // ---------------- CLICK SUGGESTION ----------------
+  const handleSuggestionClick = (item) => {
+    router.push(item.MenuUrl);
+    setSearchText("");
+    setShowSuggestions(false);
+  };
+
+  // ---------------- HIGHLIGHT MATCH TEXT ----------------
+  const highlightText = (text, query) => {
+    if (!query) return text;
+
+    const regex = new RegExp(`(${query})`, "gi");
+    const parts = text.split(regex);
+
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <span key={i} style={{ fontWeight: "bold", color: "#1976d2" }}>
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
+  // ---------------- SEARCH HANDLER ----------------
+  const handleSearch = (inputText) => {
+    const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+
+    if (!text) return;
+
+    // exact match
+    const exact = menuItems.find(
+      (m) => m.MenuName.toLowerCase() === text
+    );
+
+    if (exact) {
+      router.push(exact.MenuUrl);
+      return;
+    }
+
+    // fallback suggestion
+    const result = getSuggestions(text);
+
+    if (result.length > 0) {
+      router.push(result[0].MenuUrl);
+    } else {
+      alert("No matching page found");
+    }
+
+    setSearchText("");
+    setShowSuggestions(false);
+  };
+
+  // ---------------- KEYBOARD NAVIGATION ----------------
+  const handleKeyDown = (e) => {
+    if (!showSuggestions) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+
+      if (activeIndex >= 0) {
+        handleSuggestionClick(suggestions[activeIndex]);
+      } else {
+        handleSearch();
+      }
+    }
+  };
+
+  // ---------------- VOICE SETUP ----------------
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) return;
+
+      const recognition = new SpeechRecognition();
+
+      recognition.lang = "en-IN";
+      recognition.continuous = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+
+      recognition.onresult = (event) => {
+        const voiceText = event.results[0][0].transcript;
+        setSearchText(voiceText);
+        handleSearch(voiceText);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, [menuItems]);
+
+  // ---------------- START VOICE ----------------
+  const startListening = () => {
+    if (!recognitionRef.current) {
+      alert("Voice not supported");
+      return;
+    }
+    recognitionRef.current.start();
+  };
+
+  // ---------------- UI ----------------
   return (
     <div className={`dashboardLayout ${menuOpen ? "menu-open" : "menu-close"}`}>
-      
-      {/* SIDEBAR */}
+
+      {/* ---------------- SIDEBAR ---------------- */}
       <aside className="sidebar">
         <div className="logo">
-                  <FaGem className="gem" />
-                  <h5>Jewelry Stock</h5>
-                </div>
-        {/* <ul class="menu">
-          <li className="menuItem">
-           <Link href="/dashboard" className="menuLink">
-           <span className="icon">🏠</span>
-          <span>Home</span>
-          </Link>
-         </li>
+          <FaGem />
+          <h5>Jewelry Stock</h5>
+        </div>
 
-         <li className="menuItem">
-          <Link href="/metalmaster" className="menuLink">
-          <span className="icon">💎</span>
-          <span>Add Metal</span>
-         </Link>
-        </li>
+        <ul className="menu">
+          {menuItems.map((menu, index) => {
+            const IconComponent = iconMap[menu.Icon];
 
-         <li className="menuItem">
-          <Link href="/categorymaster" className="menuLink">
-          <span className="icon">📦</span>
-          <span>Add Category</span>
-         </Link>
-        </li>
-
-         <li className="menuItem">
-          <Link href="/productmaster" className="menuLink">
-          <span className="icon">📦</span>
-          <span>Add Product</span>
-         </Link>
-        </li>
-         <li className="menuItem">
-          <Link href="/stocktransaction" className="menuLink">
-          <span className="icon">📦</span>
-          <span>Stock Transaction</span>
-         </Link>
-        </li>
-        </ul> */}
-<ul className="menu">
-  {menuItems.map((menu, index) => {
-    const IconComponent = iconMap[menu.Icon];
-
-    return (
-      <li key={menu.MenuId || index} className="menuItem">
-        {menu.MenuUrl && (
-          <Link href={menu.MenuUrl} className="menuLink">
-            <span className="icon" style={{ marginRight: "8px" }}>
-              {IconComponent ? <IconComponent /> : "📌"}
-            </span>
-            <span>{menu.MenuName}</span>
-          </Link>
-        )}
-      </li>
-    );
-  })}
-</ul>
+            return (
+              <li key={menu.MenuId || index}>
+                <Link href={menu.MenuUrl}>
+                  {IconComponent ? <IconComponent /> : "📌"} {menu.MenuName}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* ---------------- MAIN ---------------- */}
       <div className="mainContent">
 
-        {/* TOP BAR */}
+        {/* ---------------- TOPBAR ---------------- */}
         <header className="topbar">
-          <button
-            className="menuToggle"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            ☰
-          </button>
 
-          <div className="profileMenu" ref={menuRef}>
-      <span>Hi, Rohit</span>
+          <button onClick={() => setMenuOpen(!menuOpen)}>☰</button>
 
-      <div
-        className="dots"
-        onClick={() => setOpen(!open)}
-      >
-        ⋮
-      </div>
+          {/* ---------------- SEARCH BAR ---------------- */}
+          <div style={{ position: "relative", marginLeft: "20px", width: "260px" }}>
 
-      {open && (
-       <div className="profileDropdown">
-          <div className="menuItem profile" onClick={() => router.push("/profile")}><FaUserCircle />Profile</div>
-          
-          <div className="menuItem logout" onClick={handleLogout}><FaSignOutAlt />Logout</div>
+  {/* ---------------- SEARCH INPUT ---------------- */}
+  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+    <input
+      type="text"
+      value={searchText}
+      placeholder="Search or speak..."
+      onChange={(e) => handleInputChange(e.target.value)}
+      onKeyDown={handleKeyDown}
+      style={{
+        flex: 1,
+        padding: "8px 12px",
+        borderRadius: "12px",
+        border: "1px solid #ccc",
+        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+        outline: "none",
+        transition: "all 0.2s",
+      }}
+      onFocus={(e) => e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)"}
+      onBlur={(e) => e.target.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)"}
+    />
+
+    <button
+      onClick={() => handleSearch()}
+      style={{
+        background: "#1976d2",
+        color: "#fff",
+        border: "none",
+        borderRadius: "12px",
+        padding: "6px 12px",
+        cursor: "pointer",
+        fontWeight: 500,
+        transition: "background 0.2s",
+      }}
+      onMouseEnter={(e) => e.target.style.background = "#155a9c"}
+      onMouseLeave={(e) => e.target.style.background = "#1976d2"}
+    >
+      Go
+    </button>
+
+    {/* ---------------- VOICE BUTTON ---------------- */}
+    <button
+      onClick={startListening}
+      style={{
+        background: isListening ? "#d32f2f" : "#1976d2",
+        color: "#fff",
+        border: "none",
+        borderRadius: "50%",
+        padding: "8px",
+        cursor: "pointer",
+        fontSize: "16px",
+        transition: "all 0.2s",
+      }}
+      onMouseEnter={(e) => e.target.style.opacity = 0.85}
+      onMouseLeave={(e) => e.target.style.opacity = 1}
+    >
+      {isListening ? "🎙️" : "🎤"}
+    </button>
+  </div>
+
+  {/* ---------------- SUGGESTIONS DROPDOWN ---------------- */}
+  {showSuggestions && suggestions.length > 0 && (
+    <div
+      style={{
+        position: "absolute",
+        top: "45px",
+        width: "100%",
+        background: "#fff",
+        borderRadius: "12px",
+        border: "1px solid #ddd",
+        boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+        zIndex: 1000,
+        overflow: "hidden",
+        maxHeight: "300px",
+        overflowY: "auto",
+        transition: "all 0.2s"
+      }}
+    >
+      {suggestions.map((item, index) => (
+        <div
+          key={index}
+          onClick={() => handleSuggestionClick(item)}
+          style={{
+            padding: "10px 12px",
+            cursor: "pointer",
+            background: index === activeIndex ? "#1976d2" : "#fff",
+            color: index === activeIndex ? "#fff" : "#333",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={() => setActiveIndex(index)}
+        >
+          {highlightText(item.MenuName, searchText)}
         </div>
-      )}
+      ))}
     </div>
+  )}
+</div>
+
+          {/* ---------------- PROFILE ---------------- */}
+          <div ref={menuRef}>
+            <span>Hi, Rohit</span>
+
+            <div onClick={() => setOpen(!open)}>⋮</div>
+
+            {open && (
+              <div>
+                <div onClick={() => router.push("/profile")}>
+                  <FaUserCircle /> Profile
+                </div>
+                <div onClick={handleLogout}>
+                  <FaSignOutAlt /> Logout
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
-        <main className="pageContent">
-          {children}
-        </main>
+        {/* ---------------- PAGE CONTENT ---------------- */}
+        <main>{children}</main>
+
+        {/* ---------------- CHATBOT ---------------- */}
+        <Chatbot />
+
       </div>
     </div>
   );

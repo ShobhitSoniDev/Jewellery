@@ -90,13 +90,13 @@ const AddCustomer = () => {
       const response = await CustomerMaster_Manage(payload);
 
       if (response && response.data && response.data[0] && response.data[0].Code === 1) {
-
-        await Swal.fire({
-          icon: "success",
-          title: "Saved!",
-          text: response.data[0].Message || "Saved successfully",
-        });
-
+setShowCustomerModal(false);
+Swal.fire({
+  icon: "success",
+  title: "Saved!",
+  text: response.data[0].Message || "Saved successfully",
+  zIndex: 99999
+});
         loadCustomerList();
         resetForm();
 
@@ -106,6 +106,7 @@ const AddCustomer = () => {
           icon: "error",
           title: "Error",
           text: response?.data?.[0]?.Message || "Save failed",
+          zIndex: 99999
         });
       }
 

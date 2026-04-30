@@ -32,6 +32,7 @@ export default function DashboardLayout({ children }) {
   };
 
   // ---------------- STATE MANAGEMENT ----------------
+  const [userName, setUserName] = useState("");
   const [menuOpen, setMenuOpen] = useState(true); // sidebar toggle
   const [menuItems, setMenuItems] = useState([]); // menu list from API
 
@@ -50,6 +51,8 @@ export default function DashboardLayout({ children }) {
 
   // ---------------- LOAD MENU ----------------
   useEffect(() => {
+    const name = localStorage.getItem("userName");
+  if (name) setUserName(name);
     loadMenuItems();
 
     // close profile dropdown on outside click
@@ -66,6 +69,7 @@ export default function DashboardLayout({ children }) {
   const loadMenuItems = async () => {
     try {
       const response = await getMenu();
+      localStorage.setItem("allowedMenus", JSON.stringify(response.data));
       setMenuItems(response.data || []);
     } catch (error) {
       console.error("Error loading menu items:", error);
@@ -146,34 +150,112 @@ export default function DashboardLayout({ children }) {
   };
 
   // ---------------- SEARCH HANDLER ----------------
-  const handleSearch = (inputText) => {
-    const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+  // const handleSearch = (inputText) => {
+  //   const text = (inputText ?? searchText ?? "").toLowerCase().trim();
 
-    if (!text) return;
+  //   if (!text) return;
 
-    // exact match
-    const exact = menuItems.find(
-      (m) => m.MenuName.toLowerCase() === text
-    );
+  //   // exact match
+  //   const exact = menuItems.find(
+  //     (m) => m.MenuName.toLowerCase() === text
+  //   );
 
-    if (exact) {
-      router.push(exact.MenuUrl);
+  //   if (exact) {
+  //     router.push(exact.MenuUrl);
+  //     return;
+  //   }
+
+  //   // fallback suggestion
+  //   const result = getSuggestions(text);
+
+  //   if (result.length > 0) {
+  //     router.push(result[0].MenuUrl);
+  //   } else {
+  //     alert("No matching page found");
+  //   }
+
+  //   setSearchText("");
+  //   setShowSuggestions(false);
+  // };
+  const handleSearch = async (inputText) => {
+  const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+
+  if (!text) return;
+
+  // 🔥 AI detect
+  const isAICommand =
+    text.startsWith("add") ||
+    text.startsWith("create") ||
+    text.startsWith("insert");
+
+  if (isAICommand) {
+    await handleAICommand(text);
+    setSearchText("");
+    return;
+  }
+
+  // ✅ Normal search (same as before)
+  const exact = menuItems.find(
+    (m) => m.MenuName.toLowerCase() === text
+  );
+
+  if (exact) {
+    router.push(exact.MenuUrl);
+    return;
+  }
+
+  const result = getSuggestions(text);
+
+  if (result.length > 0) {
+    router.push(result[0].MenuUrl);
+  } else {
+    alert("No matching page found");
+  }
+
+  setSearchText("");
+  setShowSuggestions(false);
+};
+const handleAICommand = async (text) => {
+  try {
+    const res = await fetch("/api/ai-command", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ input: text })
+    });
+
+    const data = await res.json();
+
+    console.log("AI RESPONSE:", data); // debug
+
+    if (!data || data.error) {
+      alert("AI failed");
       return;
     }
 
-    // fallback suggestion
-    const result = getSuggestions(text);
+    // 🔥 पहले page open
+    if (data.page === "metal") {
+  router.push("/metalmaster");
+}
+if (data.page === "category") {
+  router.push("/categorymaster");
+}
+if (data.page === "product") {
+  router.push("/productmaster");
+}
 
-    if (result.length > 0) {
-      router.push(result[0].MenuUrl);
-    } else {
-      alert("No matching page found");
-    }
+    // 🔥 फिर data भेजो (delay के साथ)
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("ai-form-fill", { detail: data })
+      );
+    }, 500);
 
-    setSearchText("");
-    setShowSuggestions(false);
-  };
-
+  } catch (err) {
+    console.error("AI Error:", err);
+  }
+};
   // ---------------- KEYBOARD NAVIGATION ----------------
   const handleKeyDown = (e) => {
     if (!showSuggestions) return;
@@ -313,7 +395,19 @@ export default function DashboardLayout({ children }) {
     >
       Go
     </button>
-
+<button
+  onClick={() => handleAICommand(searchText)}
+  style={{
+    background: "#28a745",
+    color: "#fff",
+    border: "none",
+    borderRadius: "12px",
+    padding: "6px 12px",
+    cursor: "pointer"
+  }}
+>
+  AI
+</button>
     {/* ---------------- VOICE BUTTON ---------------- */}
     <button
       onClick={startListening}
@@ -373,22 +467,70 @@ export default function DashboardLayout({ children }) {
 </div>
 
           {/* ---------------- PROFILE ---------------- */}
-          <div ref={menuRef}>
-            <span>Hi, Rohit</span>
+          <div ref={menuRef} style={{ position: "relative", display: "inline-block" }}>
+  
+  {/* Button */}
+  <div
+    onClick={() => setOpen(!open)}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      cursor: "pointer",
+      background: "#fff",
+      padding: "8px 12px",
+      borderRadius: "10px",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.15)"
+    }}
+  >
+    <FaUserCircle />
+    <span style={{ color: "#333", fontWeight: "500" }}>Hi, {userName || "User"}</span>
+  </div>
 
-            <div onClick={() => setOpen(!open)}>⋮</div>
+  {/* Dropdown */}
+  {open && (
+    <div
+      style={{
+        position: "fixed",   // 🔥 IMPORTANT (absolute nahi, fixed use karo)
+        top: "60px",         // navbar ke niche adjust karo
+        right: "20px",
+        width: "160px",
+        background: "#ffffff",
+        color: "#000",
+        borderRadius: "10px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        border: "1px solid #ddd",
+        zIndex: 999999       // 🔥 FORCE TOP
+      }}
+    >
+      
+      <div
+        onClick={() => router.push("/profile")}
+        style={{
+          padding: "10px",
+          cursor: "pointer",
+          borderBottom: "1px solid #eee"
+        }}
+      >
+        <FaUserCircle style={{ marginRight: "8px" }} />
+        Profile
+      </div>
 
-            {open && (
-              <div>
-                <div onClick={() => router.push("/profile")}>
-                  <FaUserCircle /> Profile
-                </div>
-                <div onClick={handleLogout}>
-                  <FaSignOutAlt /> Logout
-                </div>
-              </div>
-            )}
-          </div>
+      <div
+        onClick={handleLogout}
+        style={{
+          padding: "10px",
+          cursor: "pointer",
+          color: "red"
+        }}
+      >
+        <FaSignOutAlt style={{ marginRight: "8px" }} />
+        Logout
+      </div>
+
+    </div>
+  )}
+</div>
         </header>
 
         {/* ---------------- PAGE CONTENT ---------------- */}

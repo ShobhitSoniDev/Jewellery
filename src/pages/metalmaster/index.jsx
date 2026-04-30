@@ -57,10 +57,9 @@ const [voiceSubmitTrigger, setVoiceSubmitTrigger] = useState(false);
       typeId: editId ? 2 : 1,
       metalId: editId || 0,
     };
-
     try {
       const response = await MetalMaster_Manage(payload);
-if(response?.data[0]?.code === 1)
+if(response?.data[0]?.Code === 1)
 {      
   Swal.fire({
         icon: "success",
@@ -118,6 +117,43 @@ if(response?.data[0]?.code === 1)
     setVoiceSubmitTrigger(false);
   }
 }, [metalname, purity, voiceSubmitTrigger]);
+
+useEffect(() => {
+  const handleAI = (event) => {
+    console.log("AI EVENT RECEIVED:", event.detail);
+
+    const data = event.detail;
+
+    if (!data || data.page !== "metal") return;
+
+    const { metalname, purity } = data.data;
+
+    // 🔥 set metal name
+    if (metalname) {
+      setmetalname(metalname);
+    }
+
+    // 🔥 set purity (mapping से)
+    if (purity && purityList.length > 0) {
+      const purityItem = purityList.find((p) =>
+        p.PurityDesc.toString().includes(purity)
+      );
+
+      if (purityItem) {
+        setpurity(purityItem.PurityId.toString());
+      }
+    }
+
+    setEditId(null);
+    setButtonName("Save");
+  };
+
+  window.addEventListener("ai-form-fill", handleAI);
+
+  return () => {
+    window.removeEventListener("ai-form-fill", handleAI);
+  };
+}, [purityList]);
   /* ---------------- Edit ---------------- */
   const handleEdit = (item) => {
     setmetalname(item.MetalName);
@@ -144,11 +180,13 @@ if(response?.data[0]?.code === 1)
     try {
       const payload = { metalName: "", purity: 0, typeId: 3, metalId: id };
       const response = await MetalMaster_Manage(payload);
-      if (response?.code === 1) {
+      debugger
+      if(response?.data[0]?.Code === 1)
+      {
         await Swal.fire({
           icon: "success",
           title: "Deleted!",
-          text: response?.Message || "Deleted successfully",
+          text: response?.data[0]?.Message || "Deleted successfully",
           confirmButtonColor: "#3085d6",
         });
         loadMetalList(4);
@@ -156,7 +194,7 @@ if(response?.data[0]?.code === 1)
         Swal.fire({
           icon: "error",
           title: "Error!",
-          text: response?.Message || "Failed to delete",
+          text: response?.data[0]?.Message || "Failed to delete",
           confirmButtonColor: "#3085d6",
         });
       }

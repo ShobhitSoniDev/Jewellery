@@ -152,7 +152,32 @@ const AddCategory = () => {
     loadmetalList();
     loadCategoryList();
   }, []);
+useEffect(() => {
+  const handleAI = (event) => {
+    console.log("AI EVENT CATEGORY:", event.detail);
 
+    const data = event.detail;
+
+    if (!data || data.page !== "category") return;
+
+    const { categoryname } = data.data;
+
+    // 🔥 form fill
+    if (categoryname) {
+      setcategoryname(categoryname);
+    }
+
+    // 🔥 reset state
+    setEditId(null);
+    setButtonName("Save");
+  };
+
+  window.addEventListener("ai-form-fill", handleAI);
+
+  return () => {
+    window.removeEventListener("ai-form-fill", handleAI);
+  };
+}, []);
   /* ---------------- EDIT ---------------- */
 
   const handleEdit = (item) => {

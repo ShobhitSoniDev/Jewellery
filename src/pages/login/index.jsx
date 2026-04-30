@@ -43,7 +43,9 @@ const handleLogin = async (event) => {
     const response = await LoginUser(payload);
 
     if (response.code === 1) {
-      sessionStorage.setItem("token", response.data); // token
+      debugger
+      sessionStorage.setItem("token", response.data.token); // token
+      localStorage.setItem("userName", response.data.UserName); // store username for greeting
       router.push("/dashboard");
       // alert(response.message || "Login successful ✅");
     } else {

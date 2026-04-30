@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children }: any) {
 
   useEffect(() => {
     const storedMenus = localStorage.getItem("allowedMenus");
-
+debugger
     if (!storedMenus) {
       router.push("/login");
       return;

@@ -5,7 +5,7 @@ let isUnauthorized = false; // ✅ global flag
 const apiClient: AxiosInstance = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:5000/api",
+    "https://jewelleryapi20260513115456-a3dmbncpfnhueghy.southindia-01.azurewebsites.net/api",
   headers: {
     "Content-Type": "application/json",
   },

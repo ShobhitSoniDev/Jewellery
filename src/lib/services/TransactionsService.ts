@@ -1,6 +1,6 @@
 import api from "../axios";
 import { API_ENDPOINTS } from "../endpoints";
-
+import Swal from "sweetalert2";
 
 
 export interface StockTransaction_ManagePayload {
@@ -32,7 +32,47 @@ export const StockTransaction_Manage = async (payload: StockTransaction_ManagePa
     
     return response.data;
     } catch (error) {
-   console.log("ERROR FULL => ", error.response);
-   console.log("ERROR DATA => ", error.response?.data);
+  console.error(error);
+
+  let message = "Something went wrong";
+
+  if (error instanceof Error) {
+    message = error.message;
+  }
+
+  Swal.fire({
+    icon: "error",
+    title: "Error",
+    text: message,
+  });
 }
+};
+export const LoanEntry_Manage = async (formData: FormData) => {
+  try {
+    const token = sessionStorage.getItem("token");
+debugger
+    // 🔍 Debug
+    console.log("===== FORM DATA =====");
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+debugger
+    const response = await api.post(
+      API_ENDPOINTS.Transactions.LoanEntry_Manage_URL,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // ❌ DO NOT SET Content-Type
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
 };

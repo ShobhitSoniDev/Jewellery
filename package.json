@@ -2,13 +2,12 @@
   "name": "sparkle",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "preview": "vite preview"
-  },
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start -p 8080",
+  "lint": "eslint"
+},
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

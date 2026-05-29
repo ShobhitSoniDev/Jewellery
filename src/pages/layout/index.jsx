@@ -68,6 +68,8 @@ export default function DashboardLayout({ children }) {
 
   const loadMenuItems = async () => {
     try {
+      debugger
+
       const response = await getMenu();
       localStorage.setItem("allowedMenus", JSON.stringify(response.data));
       setMenuItems(response.data || []);
@@ -78,6 +80,7 @@ export default function DashboardLayout({ children }) {
 
   // ---------------- LOGOUT ----------------
   const handleLogout = async () => {
+    
     try {
       const payload = {
         UserId: sessionStorage.getItem("username") || ""

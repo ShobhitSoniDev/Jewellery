@@ -50,6 +50,17 @@ export default function DashboardLayout({ children }) {
   const recognitionRef = useRef(null);
 
   // ---------------- LOAD MENU ----------------
+    const loadMenuItems = async () => {
+    try {
+      debugger
+
+      const response = await getMenu();
+      localStorage.setItem("allowedMenus", JSON.stringify(response.data));
+      setMenuItems(response.data || []);
+    } catch (error) {
+      console.error("Error loading menu items:", error);
+    }
+  };
   useEffect(() => {
     const name = localStorage.getItem("userName");
   if (name) setUserName(name);
@@ -66,17 +77,7 @@ export default function DashboardLayout({ children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const loadMenuItems = async () => {
-    try {
-      debugger
 
-      const response = await getMenu();
-      localStorage.setItem("allowedMenus", JSON.stringify(response.data));
-      setMenuItems(response.data || []);
-    } catch (error) {
-      console.error("Error loading menu items:", error);
-    }
-  };
 
   // ---------------- LOGOUT ----------------
   const handleLogout = async () => {

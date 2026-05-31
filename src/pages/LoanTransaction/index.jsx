@@ -13,7 +13,7 @@ const LoanEntry = () => {
   const [interestType, setInterestType] = useState("Monthly");
   const [interestRate, setInterestRate] = useState("");
   const [startDate, setStartDate] = useState("");
-
+const [endDate, setEndDate] = useState("");
   const [metalType, setMetalType] = useState("");
   const [weight, setWeight] = useState("");
   const [description, setDescription] = useState("");
@@ -75,24 +75,82 @@ const handleImageChange = (e) => {
     })();
   }, []);
 useEffect(() => {
-  if (amount && interestRate && expectedLoanDuration) {
-    const P = parseFloat(amount);
-    const R = parseFloat(interestRate);
-    const T = parseFloat(expectedLoanDuration);
+  if (!startDate || !expectedLoanDuration) return;
 
-    let interest = 0;
+  const start = new Date(startDate);
+  const end = new Date(start);
 
-    if (interestType === "Monthly") {
-      interest = (P * R * T) / 100;
-    } else {
-      const timeInYear = T / 12;
-      interest = (P * R * timeInYear) / 100;
+  if (interestType === "Monthly") {
+    end.setMonth(end.getMonth() + parseInt(expectedLoanDuration));
+  } else {
+    end.setFullYear(end.getFullYear() + parseInt(expectedLoanDuration));
+  }
+
+  const calculatedEndDate = end.toISOString().split("T")[0];
+
+  if (calculatedEndDate !== endDate) {
+    setEndDate(calculatedEndDate);
+  }
+}, [startDate, expectedLoanDuration, interestType]);
+
+useEffect(() => {
+  if (!startDate || !endDate) return;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  let duration = 0;
+
+  if (interestType === "Monthly") {
+    duration =
+      (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth());
+
+    if (end.getDate() > start.getDate()) {
+      duration += 1;
     }
 
-    setestimatedInterest(interest);
-    setestimatedTotalPayable(P + interest);
+    if (duration === 0 && end > start) {
+      duration = 1;
+    }
+  } else {
+    duration = end.getFullYear() - start.getFullYear();
+
+    if (
+      end.getMonth() > start.getMonth() ||
+      (end.getMonth() === start.getMonth() &&
+        end.getDate() > start.getDate())
+    ) {
+      duration += 1;
+    }
+
+    if (duration === 0 && end > start) {
+      duration = 1;
+    }
   }
+
+  if (String(duration) !== String(expectedLoanDuration)) {
+    setexpectedLoanDuration(duration);
+  }
+}, [startDate, endDate, interestType]);
+
+useEffect(() => {
+  if (!amount || !interestRate || !expectedLoanDuration) {
+    setestimatedInterest(0);
+    setestimatedTotalPayable(0);
+    return;
+  }
+
+  const P = parseFloat(amount) || 0;
+  const R = parseFloat(interestRate) || 0;
+  const T = parseFloat(expectedLoanDuration) || 0;
+
+  const interest = (P * R * T) / 100;
+
+  setestimatedInterest(interest);
+  setestimatedTotalPayable(P + interest);
 }, [amount, interestRate, expectedLoanDuration, interestType]);
+
   // 🔥 ADD CUSTOMER
   const handleAddCustomer = async () => {
   try {
@@ -219,7 +277,10 @@ const handleValidation = () => {
     newerror.startDate = "Start date is required";
     flag = false;
   }
-
+ if (!endDate) {
+    newerror.endDate = "End date is required";
+    flag = false;
+  }
   // GIRVI specific fields
   if (loanType === "girvi") {
 
@@ -232,16 +293,16 @@ const handleValidation = () => {
       newerror.weight = "Weight is required";
       flag = false;
     }
-
+debugger
     if (!itemCount) {
       newerror.itemCount = "Item count is required";
       flag = false;
     }
 
-    if (!description) {
-      newerror.description = "Description is required";
-      flag = false;
-    }
+    // if (!description) {
+    //   newerror.description = "Description is required";
+    //   flag = false;
+    // }
 
     // // Optional but recommended
     // if (!photos || photos.length === 0) {
@@ -324,9 +385,10 @@ const handleValidation = () => {
     setInterestType("Monthly");
     setInterestRate("");
     setStartDate("");
-
+setEndDate("");
     setMetalType("");
     setWeight("");
+    setItemCount("");
     setDescription("");
     setRemark("");
 setPhotos([]);
@@ -434,6 +496,13 @@ setImagePreviews([]);
             </div>
           </div>
 <div className="form-row">
+
+  <div className="form-group">
+  <label>End Date</label>
+  <input  type="date"  value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <p style={{color:"red"}}>{error.endDate}</p>
+  
+</div>
   <div className="form-group">
   <label>Expected Duration (Months/Year)</label>
   <input 
@@ -443,6 +512,9 @@ setImagePreviews([]);
   />
   <p style={{color:"red"}}>{error.expectedLoanDuration}</p>
 </div>
+
+</div>
+<div className="form-row">
 <div className="form-group">
   <label>Estimated Interest</label>
   <input value={estimatedInterest} readOnly />
@@ -452,6 +524,7 @@ setImagePreviews([]);
     Estimated Total Payable: ₹ {estimatedTotalPayable}
   </p>
 </div>
+<div className="form-group">  </div>
 </div>
           {/* GIRVI */}
           {loanType === "girvi" && (
@@ -480,12 +553,7 @@ setImagePreviews([]);
                 <div className="form-group">
   <label>Jewellery Photos</label>
 
-  <input 
-    type="file" 
-    accept="image/*" 
-    multiple
-    onChange={handleImageChange} 
-  />
+  <input  type="file"  accept="image/*"   multiple  onChange={handleImageChange} />
 
   {/* Preview */}
   <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
@@ -500,14 +568,10 @@ setImagePreviews([]);
   </div>
 </div>
 
-                <div className="form-group">
+ <div className="form-group">
   <label>Item Count</label>
-  <input 
-    type="number"
-    value={itemCount} 
-    onChange={(e) => setItemCount(e.target.value)} 
-  />
-  <p style={{color:"red"}}>{itemCount}</p>
+  <input type="number" value={itemCount} onChange={(e) => setItemCount(e.target.value)} />
+  <p style={{color:"red"}}>{error.itemCount}</p>
 </div>
               </div>
               <div className="form-row">

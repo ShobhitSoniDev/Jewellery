@@ -537,7 +537,9 @@ if (data.page === "product") {
         </header>
 
         {/* ---------------- PAGE CONTENT ---------------- */}
-        <main>{children}</main>
+       <main className="pageContent">
+  {children}
+</main>
 
         {/* ---------------- CHATBOT ---------------- */}
         <Chatbot />

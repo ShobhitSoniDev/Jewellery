@@ -6,9 +6,9 @@ const apiClient: AxiosInstance = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "https://jewelleryapi20260513115456-a3dmbncpfnhueghy.southindia-01.azurewebsites.net/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  // headers: {
+  //   "Content-Type": "application/json",
+  // },
 });
 
 /* =========================

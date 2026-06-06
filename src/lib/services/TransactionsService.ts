@@ -16,7 +16,6 @@ export interface StockTransaction_ManagePayload {
 
 export const StockTransaction_Manage = async (payload: StockTransaction_ManagePayload) => {
   try {
-  debugger
     // ✅ Get token from sessionStorage
     const token = sessionStorage.getItem("token");
     // ✅ Call API with Authorization header
@@ -50,19 +49,18 @@ export const StockTransaction_Manage = async (payload: StockTransaction_ManagePa
 export const LoanEntry_Manage = async (formData: FormData) => {
   try {
     const token = sessionStorage.getItem("token");
-debugger
     // 🔍 Debug
     console.log("===== FORM DATA =====");
     for (let pair of formData.entries()) {
       console.log(pair[0], pair[1]);
     }
-debugger
     const response = await api.post(
       API_ENDPOINTS.Transactions.LoanEntry_Manage_URL,
       formData,
       {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
           // ❌ DO NOT SET Content-Type
         },
       }

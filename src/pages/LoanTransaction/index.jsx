@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef  } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { CustomerMaster_Manage } from "@/lib/services/MasterService";
 import { LoanEntry_Manage } from "@/lib/services/TransactionsService";
 import Select from "react-select";
 import Swal from "sweetalert2";
+import { duration } from "@mui/material";
 
 const LoanEntry = () => {
 
@@ -19,6 +20,7 @@ const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [remark, setRemark] = useState("");
  const [photos, setPhotos] = useState([]);
+const fileInputRef = useRef(null);
 const [imagePreviews, setImagePreviews] = useState([]);
   const [customerList, setCustomerList] = useState([]);
   const [customerId, setCustomerId] = useState("");
@@ -293,7 +295,6 @@ const handleValidation = () => {
       newerror.weight = "Weight is required";
       flag = false;
     }
-debugger
     if (!itemCount) {
       newerror.itemCount = "Item count is required";
       flag = false;
@@ -327,18 +328,21 @@ debugger
     formData.append("Amount", amount?.toString());
     formData.append("InterestType", interestType || "");
     formData.append("InterestRate", interestRate?.toString());
-
+    formData.append("Duration", expectedLoanDuration?.toString());
     // ✅ FIX DATE FORMAT
     formData.append(
       "StartDate",
       startDate ? new Date(startDate).toISOString() : ""
     );
-
+// ✅ FIX DATE FORMAT
+    formData.append(
+      "EndDate",
+      endDate ? new Date(endDate).toISOString() : ""
+    );
     formData.append("MetalType", metalType || "");
     formData.append("Weight", weight?.toString());
     formData.append("ItemCount", itemCount?.toString());
     formData.append("Description", description || "");
-    formData.append("Remark", remark || "");
     formData.append("TypeId", editId ? "2" : "1");
 
     // ✅ FILES
@@ -353,10 +357,10 @@ debugger
     const result = await LoanEntry_Manage(formData);
 
     if (result?.data?.code === 1 || result?.data?.[0]?.Code === 1) {
-      Swal.fire({
+        Swal.fire({
         icon: "success",
         title: "Saved!",
-        text: result?.data?.message || "Success",
+        text: result?.data[0]?.Message || "Success",
       });
 
       resetForm();
@@ -364,7 +368,7 @@ debugger
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: result?.data?.message || "Failed",
+        text:result?.data[0]?.Message || "Failed",
       });
     }
 
@@ -393,8 +397,10 @@ setEndDate("");
     setRemark("");
 setPhotos([]);
 setImagePreviews([]);
-
     setCustomerId("");
+    if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
   };
   return (
     <ProtectedRoute>
@@ -553,7 +559,13 @@ setImagePreviews([]);
                 <div className="form-group">
   <label>Jewellery Photos</label>
 
-  <input  type="file"  accept="image/*"   multiple  onChange={handleImageChange} />
+<input
+  ref={fileInputRef}
+  type="file"
+  accept="image/*"
+  multiple
+  onChange={handleImageChange}
+/>
 
   {/* Preview */}
   <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>

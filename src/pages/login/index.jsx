@@ -112,7 +112,7 @@ const handleLogin = async (event) => {
             Sign Up
           </Link>
         </p>
-<h3>Build Test - 31 May 2026 1:30 PM</h3>
+<h3>Build Test - 06 Jun 2026 1:30 PM</h3>
       </div>
     </div>
   );

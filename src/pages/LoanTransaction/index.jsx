@@ -3,6 +3,7 @@ import React, { useState, useEffect,useRef  } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { CustomerMaster_Manage } from "@/lib/services/MasterService";
 import { LoanEntry_Manage } from "@/lib/services/TransactionsService";
+import LoanDetailViewModal from "@/components/CommonView/LoanDetailView";
 import Select from "react-select";
 import Swal from "sweetalert2";
 import { duration } from "@mui/material";
@@ -29,14 +30,17 @@ const [imagePreviews, setImagePreviews] = useState([]);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [estimatedInterest, setestimatedInterest] = useState(0);
 const [estimatedTotalPayable, setestimatedTotalPayable] = useState(0);
+const [loanHistory, setLoanHistory] = useState([]);
 const [error, seterror] = useState({});
  const [editId, setEditId] = useState(null);
+const [showViewModal, setShowViewModal] = useState(false);
+const [selectedLoan, setSelectedLoan] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     mobile: "",
     address: ""
   });
- const buttonName = "Save";
+const buttonName = editId ? "Update" : "Save";
   // 📸 Image Preview
 const handleImageChange = (e) => {
   const files = Array.from(e.target.files);
@@ -60,7 +64,7 @@ const handleImageChange = (e) => {
         pincode: 0,
         typeId: 4,
       };
-
+debugger
       const res = await CustomerMaster_Manage(payload);
       return res?.data || [];
 
@@ -152,6 +156,31 @@ useEffect(() => {
   setestimatedInterest(interest);
   setestimatedTotalPayable(P + interest);
 }, [amount, interestRate, expectedLoanDuration, interestType]);
+
+
+useEffect(() => {
+  if (!customerId) {
+    setLoanHistory([]);
+    return;
+  }
+
+  loadLoanHistory();
+}, [customerId]);
+
+const loadLoanHistory = async () => {
+  try {
+    debugger
+    const formData = new FormData();
+    formData.append("CustomerId", customerId?.toString());
+    formData.append("TypeId", "4");
+    const res = await LoanEntry_Manage(formData);
+
+    setLoanHistory(res?.data || []);
+  } catch (err) {
+    console.error(err);
+    setLoanHistory([]);
+  }
+};
 
   // 🔥 ADD CUSTOMER
   const handleAddCustomer = async () => {
@@ -356,21 +385,24 @@ const handleValidation = () => {
 
     const result = await LoanEntry_Manage(formData);
 
-    if (result?.data?.code === 1 || result?.data?.[0]?.Code === 1) {
-        Swal.fire({
-        icon: "success",
-        title: "Saved!",
-        text: result?.data[0]?.Message || "Success",
-      });
+    if (result?.data?.[0]?.Code === 1) {
 
-      resetForm();
-    } else {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text:result?.data[0]?.Message || "Failed",
-      });
-    }
+  Swal.fire({
+    icon: "success",
+    title: editId ? "Updated!" : "Saved!",
+    text: result?.data?.[0]?.Message || "Success",
+  });
+
+  const selectedCustomer = customerId;
+
+  setEditId(null);
+
+  await loadLoanHistory();
+
+  resetForm();
+
+  setCustomerId(selectedCustomer);
+}
 
   } catch (err) {
     console.error(err);
@@ -382,8 +414,112 @@ const handleValidation = () => {
     });
   }
 };
+
+const handleEdit = (item) => {
+  setEditId(item.LoanId);
+
+  setCustomerId(Number(item.CustomerId));
+  setLoanType(item.LoanType || "girvi");
+  setAmount(item.Amount || "");
+  setInterestType(item.InterestType || "Monthly");
+  setInterestRate(item.InterestRate || "");
+  setexpectedLoanDuration(item.Duration || "");
+
+  setStartDate(
+    item.StartDate
+      ? new Date(item.StartDate).toISOString().split("T")[0]
+      : ""
+  );
+
+  setEndDate(
+    item.EndDate
+      ? new Date(item.EndDate).toISOString().split("T")[0]
+      : ""
+  );
+
+  setMetalType(item.MetalType || "");
+  setWeight(item.Weight || "");
+  setItemCount(item.ItemCount || "");
+  setDescription(item.Description || "");
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
+const handleDelete = async (loanId) => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "You want to delete this loan record?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes",
+    cancelButtonText: "No",
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const formData = new FormData();
+
+    formData.append("LoanId", loanId);
+    formData.append("TypeId", "3"); // Delete
+
+    const response = await LoanEntry_Manage(formData);
+
+    if (response?.data?.[0]?.Code === 1) {
+      Swal.fire(
+        "Deleted!",
+        response.data[0].Message,
+        "success"
+      );
+
+      loadLoanHistory();
+    } else {
+      Swal.fire(
+        "Error",
+        response?.data?.[0]?.Message || "Delete failed",
+        "error"
+      );
+    }
+  } catch (err) {
+    console.error(err);
+
+    Swal.fire(
+      "Error",
+      "Something went wrong",
+      "error"
+    );
+  }
+};
+
+const handleView = async (loanId) => {
+  try {
+    const formData = new FormData();
+
+    formData.append("LoanId", loanId.toString());
+    formData.append("TypeId", "5");
+
+    const res = await LoanEntry_Manage(formData);
+
+    if (res?.data?.length > 0) {
+      setSelectedLoan(res.data[0]);
+      setShowViewModal(true);
+    }
+  } catch (err) {
+    console.error(err);
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Unable to load loan details",
+    });
+  }
+};
 // 🔄 RESET FORM
   const resetForm = () => {
+    setEditId(null);
     setLoanType("girvi");
     setAmount("");
     setInterestType("Monthly");
@@ -419,25 +555,26 @@ setImagePreviews([]);
 
               <div style={{ display: "flex", gap: "8px" }}>
                 <div style={{ flex: 1 }}>
-                  <Select
-                    options={customerList.map((item) => ({
-                      value: item.CustomerId,
-                      label: `${item.CustomerName} (${item.MobileNo})`,
-                    }))}
-                    value={
-                      customerList
-                        .map((item) => ({
-                          value: item.CustomerId,
-                          label: `${item.CustomerName} (${item.MobileNo})`,
-                        }))
-                        .find((c) => c.value === customerId) || null
-                    }
-                    onChange={(selected) => {
-                      setCustomerId(selected?.value || "");
-                    }}
-                    placeholder="Search Customer..."
-                    isClearable
-                  />
+                <Select
+  options={customerList.map((item) => ({
+    value: item.CustomerId,
+    label: `${item.CustomerName} (${item.MobileNo})`,
+  }))}
+  value={
+    customerList
+      .map((item) => ({
+        value: item.CustomerId,
+        label: `${item.CustomerName} (${item.MobileNo})`,
+      }))
+      .find((c) => c.value === customerId) || null
+  }
+  onChange={(selected) => {
+    setCustomerId(selected?.value || "");
+  }}
+  placeholder="Search Customer..."
+  isClearable
+  isDisabled={editId !== null}   // 👈 Edit mode me disable
+/>
                   <p style={{color:"red"}}>{error.customerId}</p>
                 </div>
 
@@ -661,7 +798,106 @@ setImagePreviews([]);
           </div>
         )}
 
+{customerId && (
+  <div className="form-card" style={{ marginTop: "20px" }}>
+    <h3>Customer Loan History</h3>
+
+    <div
+      style={{
+        overflowX: "auto",
+        width: "100%",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          minWidth: "900px",
+          borderCollapse: "collapse",
+        }}
+      >
+        <thead>
+          <tr>
+            <th>Loan No</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Interest</th>
+            <th>Interest Type</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {loanHistory.length > 0 ? (
+            loanHistory.map((item, index) => (
+              <tr key={index}>
+                <td>{item.LoanId}</td>
+                <td>{item.StartDate}</td>
+                <td>₹ {item.Amount}</td>
+                <td>{item.InterestRate}%</td>
+                <td>{item.InterestType}</td>
+                <td>{item.LoanStatus}</td>
+
+                <td>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleEdit(item)}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleDelete(item.LoanId)}
+                    >
+                      Delete
+                    </button>
+
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleView(item.LoanId)}
+                    >
+                      View
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan="7"
+                style={{
+                  textAlign: "center",
+                  padding: "15px",
+                }}
+              >
+                No Record Found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
       </div>
+   <LoanDetailViewModal
+  open={showViewModal}
+  data={selectedLoan}
+  onClose={() => {
+    setShowViewModal(false);
+    setSelectedLoan(null);
+  }}
+/>
     </ProtectedRoute>
   );
 };

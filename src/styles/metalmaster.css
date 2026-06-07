@@ -235,3 +235,63 @@ th {
     opacity: 1;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Desktop */
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-group {
+  flex: 1;
+}
+
+/* Loan History Table */
+.loan-history-wrapper {
+  overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn-group button {
+    width: 100%;
+  }
+
+  .content-wrapper {
+    padding: 10px;
+  }
+
+  .form-card {
+    padding: 12px;
+  }
+}

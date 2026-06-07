@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }) {
 
   // ---------------- STATE MANAGEMENT ----------------
   const [userName, setUserName] = useState("");
-  const [menuOpen, setMenuOpen] = useState(true); // sidebar toggle
+  const [menuOpen, setMenuOpen] = useState(false); // sidebar toggle
   const [menuItems, setMenuItems] = useState([]); // menu list from API
 
   const [open, setOpen] = useState(false); // profile dropdown
@@ -52,8 +52,6 @@ export default function DashboardLayout({ children }) {
   // ---------------- LOAD MENU ----------------
     const loadMenuItems = async () => {
     try {
-      debugger
-
       const response = await getMenu();
       localStorage.setItem("allowedMenus", JSON.stringify(response.data));
       setMenuItems(response.data || []);
@@ -77,7 +75,25 @@ export default function DashboardLayout({ children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+useEffect(() => {
+  const checkScreenSize = () => {
+    if (window.innerWidth <= 1024) {
+      // Mobile + Tablet
+      setMenuOpen(false);
+    } else {
+      // Desktop
+      setMenuOpen(true);
+    }
+  };
 
+  checkScreenSize(); // First Load
+
+  window.addEventListener("resize", checkScreenSize);
+
+  return () => {
+    window.removeEventListener("resize", checkScreenSize);
+  };
+}, []);
 
   // ---------------- LOGOUT ----------------
   const handleLogout = async () => {
@@ -341,9 +357,16 @@ if (data.page === "product") {
 
             return (
               <li key={menu.MenuId || index}>
-                <Link href={menu.MenuUrl}>
-                  {IconComponent ? <IconComponent /> : "📌"} {menu.MenuName}
-                </Link>
+                <Link
+  href={menu.MenuUrl}
+  onClick={() => {
+    if (window.innerWidth <= 1024) {
+      setMenuOpen(false);
+    }
+  }}
+>
+  {IconComponent ? <IconComponent /> : "📌"} {menu.MenuName}
+</Link>
               </li>
             );
           })}
@@ -359,41 +382,37 @@ if (data.page === "product") {
           <button onClick={() => setMenuOpen(!menuOpen)}>☰</button>
 
           {/* ---------------- SEARCH BAR ---------------- */}
-          <div style={{ position: "relative", marginLeft: "20px", width: "260px" }}>
+<div
+  style={{
+    position: "relative",
+    marginLeft: "10px",
+    width: "180px",
+  }}
+>
 
   {/* ---------------- SEARCH INPUT ---------------- */}
   <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-    <input
-      type="text"
-      value={searchText}
-      placeholder="Search or speak..."
-      onChange={(e) => handleInputChange(e.target.value)}
-      onKeyDown={handleKeyDown}
-      style={{
-        flex: 1,
-        padding: "8px 12px",
-        borderRadius: "12px",
-        border: "1px solid #ccc",
-        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-        outline: "none",
-        transition: "all 0.2s",
-      }}
-      onFocus={(e) => e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)"}
-      onBlur={(e) => e.target.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)"}
-    />
+<input
+  type="text"
+  value={searchText}
+  placeholder="Search..."
+  onChange={(e) => handleInputChange(e.target.value)}
+  onKeyDown={handleKeyDown}
+  className="search-input"
+/>
 
     <button
       onClick={() => handleSearch()}
       style={{
-        background: "#1976d2",
-        color: "#fff",
-        border: "none",
-        borderRadius: "12px",
-        padding: "6px 12px",
-        cursor: "pointer",
-        fontWeight: 500,
-        transition: "background 0.2s",
-      }}
+  flex: 1,
+  minWidth: 0,
+  padding: "8px 10px",
+  borderRadius: "12px",
+  border: "1px solid #ccc",
+  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+  outline: "none",
+  display: "none",
+}}
       onMouseEnter={(e) => e.target.style.background = "#155a9c"}
       onMouseLeave={(e) => e.target.style.background = "#1976d2"}
     >
@@ -474,22 +493,18 @@ if (data.page === "product") {
           <div ref={menuRef} style={{ position: "relative", display: "inline-block" }}>
   
   {/* Button */}
-  <div
-    onClick={() => setOpen(!open)}
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      cursor: "pointer",
-      background: "#fff",
-      padding: "8px 12px",
-      borderRadius: "10px",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.15)"
-    }}
+<div
+  onClick={() => setOpen(!open)}
+  className="profile-box"
+>
+  <FaUserCircle className="profile-icon" />
+  <span
+    className="profile-name"
+    style={{ color: "white" }}
   >
-    <FaUserCircle />
-    <span style={{ color: "#333", fontWeight: "500" }}>Hi, {userName || "User"}</span>
-  </div>
+    Hi, {userName || "User"}
+  </span>
+</div>
 
   {/* Dropdown */}
   {open && (

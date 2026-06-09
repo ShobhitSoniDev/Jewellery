@@ -75,7 +75,7 @@ const AddCustomer = () => {
     if (!handleValidation()) return;
 
     const payload = {
-      customerId: editId || "",
+      CustomerCode: editId || "",
       customerName: form.customerName,
       mobileNo: form.mobileNo,
       email: form.email,
@@ -144,7 +144,7 @@ const AddCustomer = () => {
     try {
 debugger
       const payload = {
-        customerId: "",
+        CustomerCode: "",
         customerName: "",
         mobileNo: "",
         email: "",
@@ -187,7 +187,7 @@ debugger
 
   /* ---------------- DELETE ---------------- */
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (CustomerId) => {
 
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -200,7 +200,7 @@ debugger
     try {
 
       const payload = {
-        customerId: id,
+        CustomerCode: CustomerId,
         typeId: 3,
       };
 
@@ -405,7 +405,7 @@ debugger
             <thead>
               <tr>
                 <th>Sr No</th>
-                <th>Name</th>
+                <th>Customer Code</th>
                 <th>Name</th>
                 <th>Mobile</th>
                 <th>Email</th>
@@ -417,9 +417,9 @@ debugger
 
             <tbody>
               {customerList.map((item, index) => (
-                <tr key={item.CustomerId}>
+                <tr key={item.CustomerCode}>
                   <td>{index + 1}</td>
-                  <td>{item.CustomerId}</td>
+                  <td>{item.CustomerCode}</td>
                   <td>{item.CustomerName}</td>
                   <td>{item.MobileNo}</td>
                   <td>{item.Email}</td>
@@ -429,7 +429,7 @@ debugger
                   <button  className="btn-edit-grid" onClick={() => handleEdit(item)}>Edit</button>
                   <button className="btn-danger-grid"
                     style={{ marginLeft: "8px" }}
-                    onClick={() => handleDelete(item.CustomerId)}
+                    onClick={() => handleDelete(item.CustomerCode)}
                   >
                     Delete
                   </button>

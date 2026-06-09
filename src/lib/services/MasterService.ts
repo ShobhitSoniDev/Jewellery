@@ -131,7 +131,7 @@ export const getMenu = async () => {
 };
 
 export interface AddCustomerPayload {
-  customerId: string;
+  CustomerCode: string;
   customerName: string;
   mobileNo: string;
   email: string;
@@ -144,7 +144,6 @@ export interface AddCustomerPayload {
 
 export const CustomerMaster_Manage = async (payload: AddCustomerPayload) => {
   try {
-    debugger
     // Get token
     const token = sessionStorage.getItem("token");
 

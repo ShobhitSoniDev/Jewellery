@@ -24,7 +24,7 @@ const [endDate, setEndDate] = useState("");
 const fileInputRef = useRef(null);
 const [imagePreviews, setImagePreviews] = useState([]);
   const [customerList, setCustomerList] = useState([]);
-  const [customerId, setCustomerId] = useState("");
+  const [CustomerCode, setCustomerCode] = useState("");
   const [expectedLoanDuration, setexpectedLoanDuration] = useState("");
   const [itemCount, setItemCount] = useState("");
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -55,7 +55,7 @@ const handleImageChange = (e) => {
   const loadCustomerList = async () => {
     try {
       const payload = {
-        customerId: "",
+        CustomerCode: "",
         customerName: "",
         mobileNo: "",
         email: "",
@@ -159,19 +159,19 @@ useEffect(() => {
 
 
 useEffect(() => {
-  if (!customerId) {
+  if (!CustomerCode) {
     setLoanHistory([]);
     return;
   }
 
   loadLoanHistory();
-}, [customerId]);
+}, [CustomerCode]);
 
 const loadLoanHistory = async () => {
   try {
     debugger
     const formData = new FormData();
-    formData.append("CustomerId", customerId?.toString());
+    formData.append("CustomerCode", CustomerCode?.toString());
     formData.append("TypeId", "4");
     const res = await LoanEntry_Manage(formData);
 
@@ -211,7 +211,7 @@ const loadLoanHistory = async () => {
     }
 
     const payload = {
-      customerId: "",
+      CustomerCode: "",
       customerName: newCustomer.name,
       mobileNo: newCustomer.mobile,
       address: newCustomer.address,
@@ -247,7 +247,7 @@ const loadLoanHistory = async () => {
       );
 
       if (addedCustomer) {
-        setCustomerId(addedCustomer.CustomerId);
+        setCustomerCode(addedCustomer.CustomerCode);
       }
 
       // 🔄 Reset
@@ -277,8 +277,8 @@ const handleValidation = () => {
   let flag = true;
   let newerror = {};
   // Customer
-  if (!customerId) {
-    newerror.customerId = "Customer is required";
+  if (!CustomerCode) {
+    newerror.CustomerCode = "Customer is required";
     flag = false;
   }
 
@@ -352,7 +352,7 @@ const handleValidation = () => {
     const formData = new FormData();
 
     formData.append("LoanId", editId ? editId.toString() : "0");
-    formData.append("CustomerId", customerId?.toString());
+    formData.append("CustomerCode", CustomerCode?.toString());
     formData.append("LoanType", loanType || "");
     formData.append("Amount", amount?.toString());
     formData.append("InterestType", interestType || "");
@@ -393,7 +393,7 @@ const handleValidation = () => {
     text: result?.data?.[0]?.Message || "Success",
   });
 
-  const selectedCustomer = customerId;
+  const selectedCustomer = CustomerCode;
 
   setEditId(null);
 
@@ -401,7 +401,7 @@ const handleValidation = () => {
 
   resetForm();
 
-  setCustomerId(selectedCustomer);
+  setCustomerCode(selectedCustomer);
 }
 
   } catch (err) {
@@ -418,7 +418,7 @@ const handleValidation = () => {
 const handleEdit = (item) => {
   setEditId(item.LoanId);
 
-  setCustomerId(Number(item.CustomerId));
+  setCustomerCode((item.CustomerCode));
   setLoanType(item.LoanType || "girvi");
   setAmount(item.Amount || "");
   setInterestType(item.InterestType || "Monthly");
@@ -533,7 +533,7 @@ setEndDate("");
     setRemark("");
 setPhotos([]);
 setImagePreviews([]);
-    setCustomerId("");
+    setCustomerCode("");
     if (fileInputRef.current) {
     fileInputRef.current.value = "";
   }
@@ -557,25 +557,25 @@ setImagePreviews([]);
                 <div style={{ flex: 1 }}>
                 <Select
   options={customerList.map((item) => ({
-    value: item.CustomerId,
+    value: item.CustomerCode,
     label: `${item.CustomerName} (${item.MobileNo})`,
   }))}
   value={
     customerList
       .map((item) => ({
-        value: item.CustomerId,
+        value: item.CustomerCode,
         label: `${item.CustomerName} (${item.MobileNo})`,
       }))
-      .find((c) => c.value === customerId) || null
+      .find((c) => c.value === CustomerCode) || null
   }
   onChange={(selected) => {
-    setCustomerId(selected?.value || "");
+    setCustomerCode(selected?.value || "");
   }}
   placeholder="Search Customer..."
   isClearable
   isDisabled={editId !== null}   // 👈 Edit mode me disable
 />
-                  <p style={{color:"red"}}>{error.customerId}</p>
+                  <p style={{color:"red"}}>{error.CustomerCode}</p>
                 </div>
 
                 <button
@@ -798,7 +798,7 @@ setImagePreviews([]);
           </div>
         )}
 
-{customerId && (
+{CustomerCode && (
   <div className="form-card" style={{ marginTop: "20px" }}>
     <h3>Customer Loan History</h3>
 

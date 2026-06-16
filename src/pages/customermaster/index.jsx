@@ -236,7 +236,7 @@ debugger
         <div className="form-card">
           <h2>Customer Master</h2>
           <hr />
-          <div class="form-row">
+          <div className="form-row">
 <div className="form-group">
           <label>Customer Name</label>
           <input
@@ -288,7 +288,7 @@ debugger
           <p style={{color:"red"}}>{error.mobileNo}</p>
 </div>
 </div>
-<div class="form-row">
+<div className="form-row">
 <div className="form-group">
           <label>Email</label>
           <input
@@ -340,7 +340,7 @@ debugger
           <p style={{color:"red"}}>{error.address}</p>
 </div>
 </div>
-<div class="form-row">
+<div className="form-row">
 <div className="form-group">
           <label>City</label>
           <input

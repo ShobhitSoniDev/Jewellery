@@ -209,8 +209,8 @@ const handleCancel = () => {
           <h2>Stock Transaction</h2>
           <hr />
 
-       <div class="form-row">
-      <div class="form-group">
+       <div className="form-row">
+      <div className="form-group">
         <label>Product Name</label>
         <select
         className='dropdown-select'
@@ -233,7 +233,7 @@ const handleCancel = () => {
       <p style={{color:"red"}}>{error?.ProductList}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Transaction Type</label>
         <select
         className='dropdown-select'
@@ -258,8 +258,8 @@ const handleCancel = () => {
       </div>
       
     </div>
-    <div class="form-row">
-      <div class="form-group">
+    <div className="form-row">
+      <div className="form-group">
         <label>Total Quantity</label>
         <input type="text" placeholder="Enter total quantity" value={totalquantity} onChange={(e) => {
                           const val = e.target.value;
@@ -294,7 +294,7 @@ const handleCancel = () => {
   }}/>
         <p style={{color:"red"}}>{error?.totalquantity}</p>
       </div>
-      <div class="form-group">
+      <div className="form-group">
         <label>Net Weight</label>
         <input
   type="text"
@@ -334,8 +334,8 @@ const handleCancel = () => {
         <p style={{color:"red"}}>{error?.netweight}</p>
       </div>
       </div>
-        <div class="form-row">
-      <div class="form-group">
+        <div className="form-row">
+      <div className="form-group">
         <label>Reference Type</label>
         <select
         className='dropdown-select'
@@ -358,7 +358,7 @@ const handleCancel = () => {
       <p style={{color:"red"}}>{error?.selectedreferencetype}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Reference/Bill No</label>
         <input type="text" placeholder="Reference/Bill No" value={referenceno} onChange={(e) => {
                           const val = e.target.value;
@@ -395,8 +395,8 @@ const handleCancel = () => {
       </div>
       
     </div>
-    <div class="form-row">
-      <div class="form-group">
+    <div className="form-row">
+      <div className="form-group">
         <label>Transaction Date</label>
         <input
   type="date"
@@ -411,7 +411,7 @@ const handleCancel = () => {
             }}/>
         <p style={{color:"red"}}>{error?.transactiondate}</p>
       </div>
-      <div class="form-group">
+      <div className="form-group">
        
       </div>
       </div>

@@ -1,70 +1,68 @@
 "use client";
 
-// ---------------- IMPORTS ----------------
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import {
-  FaUserCircle,
-  FaSignOutAlt,
-  FaGem,
-  FaBoxes,
-  FaBox,
-  FaExchangeAlt,
-  FaHome
-} from "react-icons/fa";
 import Link from "next/link";
+import {
+  FaBars,
+  FaBox,
+  FaBoxes,
+  FaExchangeAlt,
+  FaGem,
+  FaHome,
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaSearch,
+  FaSignOutAlt,
+  FaTimes,
+  FaUserCircle,
+} from "react-icons/fa";
 import { LogoutUser } from "@/lib/services/AuthService";
 import { getMenu } from "@/lib/services/MasterService";
 import Chatbot from "@/components/Chatbot";
 
 export default function DashboardLayout({ children }) {
-
-  // ---------------- ROUTER ----------------
   const router = useRouter();
 
-  // ---------------- ICON MAPPING ----------------
   const iconMap = {
     FaHome,
     FaGem,
     FaBoxes,
     FaBox,
-    FaExchangeAlt
+    FaExchangeAlt,
   };
 
-  // ---------------- STATE MANAGEMENT ----------------
   const [userName, setUserName] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false); // sidebar toggle
-  const [menuItems, setMenuItems] = useState([]); // menu list from API
-
-  const [open, setOpen] = useState(false); // profile dropdown
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // ---------------- SEARCH STATES ----------------
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  // ---------------- VOICE STATES ----------------
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
-  // ---------------- LOAD MENU ----------------
-    const loadMenuItems = async () => {
+  const loadMenuItems = async () => {
     try {
       const response = await getMenu();
-      localStorage.setItem("allowedMenus", JSON.stringify(response.data));
-      setMenuItems(response.data || []);
+      const data = response?.data || [];
+      localStorage.setItem("allowedMenus", JSON.stringify(data));
+      setMenuItems(data);
     } catch (error) {
       console.error("Error loading menu items:", error);
     }
   };
+
   useEffect(() => {
     const name = localStorage.getItem("userName");
-  if (name) setUserName(name);
+    if (name) setUserName(name);
+
     loadMenuItems();
 
-    // close profile dropdown on outside click
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpen(false);
@@ -75,37 +73,48 @@ export default function DashboardLayout({ children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-useEffect(() => {
-  const checkScreenSize = () => {
-    if (window.innerWidth <= 1024) {
-      // Mobile + Tablet
-      setMenuOpen(false);
-    } else {
-      // Desktop
-      setMenuOpen(true);
-    }
-  };
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setMenuOpen(window.innerWidth > 1024);
+    };
 
-  checkScreenSize(); // First Load
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
-  window.addEventListener("resize", checkScreenSize);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  return () => {
-    window.removeEventListener("resize", checkScreenSize);
-  };
-}, []);
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  // ---------------- LOGOUT ----------------
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onresult = (event) => {
+      const voiceText = event.results[0][0].transcript;
+      setSearchText(voiceText);
+      handleSearch(voiceText);
+    };
+
+    recognitionRef.current = recognition;
+  }, [menuItems]);
+
   const handleLogout = async () => {
-    
     try {
       const payload = {
-        UserId: sessionStorage.getItem("username") || ""
+        UserId: sessionStorage.getItem("username") || "",
       };
 
       const response = await LogoutUser(payload);
 
-      if (response.code === 1) {
+      if (response?.code === 1) {
         sessionStorage.clear();
         router.push("/login");
       }
@@ -115,7 +124,6 @@ useEffect(() => {
     }
   };
 
-  // ---------------- GET SUGGESTIONS ----------------
   const getSuggestions = (input) => {
     if (!input) return [];
 
@@ -123,7 +131,6 @@ useEffect(() => {
 
     return menuItems.filter((m) => {
       const name = (m.MenuName || "").toLowerCase();
-
       return (
         name.includes(text) ||
         text.includes(name) ||
@@ -133,34 +140,30 @@ useEffect(() => {
     });
   };
 
-  // ---------------- HANDLE INPUT CHANGE ----------------
   const handleInputChange = (value) => {
     setSearchText(value);
-
-    const result = getSuggestions(value);
-
-    setSuggestions(result);
+    setSuggestions(getSuggestions(value));
     setShowSuggestions(true);
-    setActiveIndex(-1); // reset highlight
+    setActiveIndex(-1);
   };
 
-  // ---------------- CLICK SUGGESTION ----------------
   const handleSuggestionClick = (item) => {
     router.push(item.MenuUrl);
     setSearchText("");
     setShowSuggestions(false);
+    if (window.innerWidth <= 1024) setMenuOpen(false);
   };
 
-  // ---------------- HIGHLIGHT MATCH TEXT ----------------
   const highlightText = (text, query) => {
     if (!query) return text;
 
-    const regex = new RegExp(`(${query})`, "gi");
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${escapedQuery})`, "gi");
     const parts = text.split(regex);
 
     return parts.map((part, i) =>
       part.toLowerCase() === query.toLowerCase() ? (
-        <span key={i} style={{ fontWeight: "bold", color: "#1976d2" }}>
+        <span key={i} className="search-highlight">
           {part}
         </span>
       ) : (
@@ -169,129 +172,85 @@ useEffect(() => {
     );
   };
 
-  // ---------------- SEARCH HANDLER ----------------
-  // const handleSearch = (inputText) => {
-  //   const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+  const handleAICommand = async (text) => {
+    if (!text?.trim()) return;
 
-  //   if (!text) return;
+    try {
+      const res = await fetch("/api/ai-command", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ input: text }),
+      });
 
-  //   // exact match
-  //   const exact = menuItems.find(
-  //     (m) => m.MenuName.toLowerCase() === text
-  //   );
+      const data = await res.json();
 
-  //   if (exact) {
-  //     router.push(exact.MenuUrl);
-  //     return;
-  //   }
+      if (!data || data.error) {
+        alert("AI failed");
+        return;
+      }
 
-  //   // fallback suggestion
-  //   const result = getSuggestions(text);
+      if (data.page === "metal") router.push("/metalmaster");
+      if (data.page === "category") router.push("/categorymaster");
+      if (data.page === "product") router.push("/productmaster");
 
-  //   if (result.length > 0) {
-  //     router.push(result[0].MenuUrl);
-  //   } else {
-  //     alert("No matching page found");
-  //   }
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("ai-form-fill", { detail: data }));
+      }, 500);
+    } catch (err) {
+      console.error("AI Error:", err);
+    }
+  };
 
-  //   setSearchText("");
-  //   setShowSuggestions(false);
-  // };
   const handleSearch = async (inputText) => {
-  const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+    const text = (inputText ?? searchText ?? "").toLowerCase().trim();
+    if (!text) return;
 
-  if (!text) return;
+    const isAICommand =
+      text.startsWith("add") ||
+      text.startsWith("create") ||
+      text.startsWith("insert");
 
-  // 🔥 AI detect
-  const isAICommand =
-    text.startsWith("add") ||
-    text.startsWith("create") ||
-    text.startsWith("insert");
-
-  if (isAICommand) {
-    await handleAICommand(text);
-    setSearchText("");
-    return;
-  }
-
-  // ✅ Normal search (same as before)
-  const exact = menuItems.find(
-    (m) => m.MenuName.toLowerCase() === text
-  );
-
-  if (exact) {
-    router.push(exact.MenuUrl);
-    return;
-  }
-
-  const result = getSuggestions(text);
-
-  if (result.length > 0) {
-    router.push(result[0].MenuUrl);
-  } else {
-    alert("No matching page found");
-  }
-
-  setSearchText("");
-  setShowSuggestions(false);
-};
-const handleAICommand = async (text) => {
-  try {
-    const res = await fetch("/api/ai-command", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ input: text })
-    });
-
-    const data = await res.json();
-
-    console.log("AI RESPONSE:", data); // debug
-
-    if (!data || data.error) {
-      alert("AI failed");
+    if (isAICommand) {
+      await handleAICommand(text);
+      setSearchText("");
+      setShowSuggestions(false);
       return;
     }
 
-    // 🔥 पहले page open
-    if (data.page === "metal") {
-  router.push("/metalmaster");
-}
-if (data.page === "category") {
-  router.push("/categorymaster");
-}
-if (data.page === "product") {
-  router.push("/productmaster");
-}
+    const exact = menuItems.find((m) => (m.MenuName || "").toLowerCase() === text);
 
-    // 🔥 फिर data भेजो (delay के साथ)
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("ai-form-fill", { detail: data })
-      );
-    }, 500);
+    if (exact) {
+      router.push(exact.MenuUrl);
+      setSearchText("");
+      setShowSuggestions(false);
+      return;
+    }
 
-  } catch (err) {
-    console.error("AI Error:", err);
-  }
-};
-  // ---------------- KEYBOARD NAVIGATION ----------------
+    const result = getSuggestions(text);
+
+    if (result.length > 0) {
+      router.push(result[0].MenuUrl);
+    } else {
+      alert("No matching page found");
+    }
+
+    setSearchText("");
+    setShowSuggestions(false);
+  };
+
   const handleKeyDown = (e) => {
     if (!showSuggestions) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) =>
-        prev < suggestions.length - 1 ? prev + 1 : 0
-      );
+      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
     }
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) =>
-        prev > 0 ? prev - 1 : suggestions.length - 1
-      );
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
     }
 
     if (e.key === "Enter") {
@@ -303,263 +262,141 @@ if (data.page === "product") {
         handleSearch();
       }
     }
+
+    if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
   };
 
-  // ---------------- VOICE SETUP ----------------
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-
-      if (!SpeechRecognition) return;
-
-      const recognition = new SpeechRecognition();
-
-      recognition.lang = "en-IN";
-      recognition.continuous = false;
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-
-      recognition.onresult = (event) => {
-        const voiceText = event.results[0][0].transcript;
-        setSearchText(voiceText);
-        handleSearch(voiceText);
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [menuItems]);
-
-  // ---------------- START VOICE ----------------
   const startListening = () => {
     if (!recognitionRef.current) {
       alert("Voice not supported");
       return;
     }
+
     recognitionRef.current.start();
   };
 
-  // ---------------- UI ----------------
+  const closeMobileMenu = () => {
+    if (window.innerWidth <= 1024) setMenuOpen(false);
+  };
+
   return (
     <div className={`dashboardLayout ${menuOpen ? "menu-open" : "menu-close"}`}>
+      {menuOpen && <button className="layoutOverlay" onClick={() => setMenuOpen(false)} aria-label="Close menu" />}
 
-      {/* ---------------- SIDEBAR ---------------- */}
       <aside className="sidebar">
-        <div className="logo">
-          <FaGem />
-          <h5>Jewelry Stock</h5>
+        <div className="sidebarTop">
+          <Link href="/dashboard" className="logo" onClick={closeMobileMenu}>
+            <span className="logoMark">
+              <FaGem />
+            </span>
+            <span>
+              <strong>Jewelry Stock</strong>
+              <small>Inventory & Girvi</small>
+            </span>
+          </Link>
+
+          <button className="sidebarClose" onClick={() => setMenuOpen(false)} aria-label="Close sidebar">
+            <FaTimes />
+          </button>
         </div>
 
         <ul className="menu">
           {menuItems.map((menu, index) => {
             const IconComponent = iconMap[menu.Icon];
+            const isActive = router.pathname.toLowerCase() === (menu.MenuUrl || "").toLowerCase();
 
             return (
               <li key={menu.MenuId || index}>
                 <Link
-  href={menu.MenuUrl}
-  onClick={() => {
-    if (window.innerWidth <= 1024) {
-      setMenuOpen(false);
-    }
-  }}
->
-  {IconComponent ? <IconComponent /> : "📌"} {menu.MenuName}
-</Link>
+                  href={menu.MenuUrl}
+                  className={`menuLink ${isActive ? "active" : ""}`}
+                  onClick={closeMobileMenu}
+                >
+                  <span className="menuIcon">{IconComponent ? <IconComponent /> : <FaGem />}</span>
+                  <span>{menu.MenuName}</span>
+                </Link>
               </li>
             );
           })}
         </ul>
       </aside>
 
-      {/* ---------------- MAIN ---------------- */}
       <div className="mainContent">
-
-        {/* ---------------- TOPBAR ---------------- */}
         <header className="topbar">
+          <div className="topbarLeft">
+            <button className="menuToggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
+              <FaBars />
+            </button>
 
-          <button onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+            <div className="searchShell">
+              <FaSearch className="searchIcon" />
+              <input
+                type="text"
+                value={searchText}
+                placeholder="Search menu or type AI command..."
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => searchText && setShowSuggestions(true)}
+                className="search-input"
+              />
 
-          {/* ---------------- SEARCH BAR ---------------- */}
-<div
-  style={{
-    position: "relative",
-    marginLeft: "10px",
-    width: "180px",
-  }}
->
+              <button className="aiButton" onClick={() => handleAICommand(searchText)} type="button">
+                AI
+              </button>
 
-  {/* ---------------- SEARCH INPUT ---------------- */}
-  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-<input
-  type="text"
-  value={searchText}
-  placeholder="Search..."
-  onChange={(e) => handleInputChange(e.target.value)}
-  onKeyDown={handleKeyDown}
-  className="search-input"
-/>
+              <button
+                className={`voiceButton ${isListening ? "listening" : ""}`}
+                onClick={startListening}
+                type="button"
+                aria-label="Voice search"
+              >
+                {isListening ? <FaMicrophoneSlash /> : <FaMicrophone />}
+              </button>
 
-    <button
-      onClick={() => handleSearch()}
-      style={{
-  flex: 1,
-  minWidth: 0,
-  padding: "8px 10px",
-  borderRadius: "12px",
-  border: "1px solid #ccc",
-  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-  outline: "none",
-  display: "none",
-}}
-      onMouseEnter={(e) => e.target.style.background = "#155a9c"}
-      onMouseLeave={(e) => e.target.style.background = "#1976d2"}
-    >
-      Go
-    </button>
-<button
-  onClick={() => handleAICommand(searchText)}
-  style={{
-    background: "#28a745",
-    color: "#fff",
-    border: "none",
-    borderRadius: "12px",
-    padding: "6px 12px",
-    cursor: "pointer"
-  }}
->
-  AI
-</button>
-    {/* ---------------- VOICE BUTTON ---------------- */}
-    <button
-      onClick={startListening}
-      style={{
-        background: isListening ? "#d32f2f" : "#1976d2",
-        color: "#fff",
-        border: "none",
-        borderRadius: "50%",
-        padding: "8px",
-        cursor: "pointer",
-        fontSize: "16px",
-        transition: "all 0.2s",
-      }}
-      onMouseEnter={(e) => e.target.style.opacity = 0.85}
-      onMouseLeave={(e) => e.target.style.opacity = 1}
-    >
-      {isListening ? "🎙️" : "🎤"}
-    </button>
-  </div>
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="suggestionsDropdown">
+                  {suggestions.map((item, index) => (
+                    <button
+                      key={`${item.MenuName}-${index}`}
+                      className={`suggestionItem ${index === activeIndex ? "active" : ""}`}
+                      onClick={() => handleSuggestionClick(item)}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      type="button"
+                    >
+                      {highlightText(item.MenuName, searchText)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-  {/* ---------------- SUGGESTIONS DROPDOWN ---------------- */}
-  {showSuggestions && suggestions.length > 0 && (
-    <div
-      style={{
-        position: "absolute",
-        top: "45px",
-        width: "100%",
-        background: "#fff",
-        borderRadius: "12px",
-        border: "1px solid #ddd",
-        boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-        zIndex: 1000,
-        overflow: "hidden",
-        maxHeight: "300px",
-        overflowY: "auto",
-        transition: "all 0.2s"
-      }}
-    >
-      {suggestions.map((item, index) => (
-        <div
-          key={index}
-          onClick={() => handleSuggestionClick(item)}
-          style={{
-            padding: "10px 12px",
-            cursor: "pointer",
-            background: index === activeIndex ? "#1976d2" : "#fff",
-            color: index === activeIndex ? "#fff" : "#333",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={() => setActiveIndex(index)}
-        >
-          {highlightText(item.MenuName, searchText)}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+          <div ref={menuRef} className="profileWrap">
+            <button className="profile-box" onClick={() => setOpen(!open)} type="button">
+              <FaUserCircle className="profile-icon" />
+              <span className="profile-name">Hi, {userName || "User"}</span>
+            </button>
 
-          {/* ---------------- PROFILE ---------------- */}
-          <div ref={menuRef} style={{ position: "relative", display: "inline-block" }}>
-  
-  {/* Button */}
-<div
-  onClick={() => setOpen(!open)}
-  className="profile-box"
->
-  <FaUserCircle className="profile-icon" />
-  <span
-    className="profile-name"
-    style={{ color: "white" }}
-  >
-    Hi, {userName || "User"}
-  </span>
-</div>
-
-  {/* Dropdown */}
-  {open && (
-    <div
-      style={{
-        position: "fixed",   // 🔥 IMPORTANT (absolute nahi, fixed use karo)
-        top: "60px",         // navbar ke niche adjust karo
-        right: "20px",
-        width: "160px",
-        background: "#ffffff",
-        color: "#000",
-        borderRadius: "10px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-        border: "1px solid #ddd",
-        zIndex: 999999       // 🔥 FORCE TOP
-      }}
-    >
-      
-      <div
-        onClick={() => router.push("/profile")}
-        style={{
-          padding: "10px",
-          cursor: "pointer",
-          borderBottom: "1px solid #eee"
-        }}
-      >
-        <FaUserCircle style={{ marginRight: "8px" }} />
-        Profile
-      </div>
-
-      <div
-        onClick={handleLogout}
-        style={{
-          padding: "10px",
-          cursor: "pointer",
-          color: "red"
-        }}
-      >
-        <FaSignOutAlt style={{ marginRight: "8px" }} />
-        Logout
-      </div>
-
-    </div>
-  )}
-</div>
+            {open && (
+              <div className="profileDropdown">
+                <button onClick={() => router.push("/profile")} type="button">
+                  <FaUserCircle />
+                  Profile
+                </button>
+                <button onClick={handleLogout} className="logoutAction" type="button">
+                  <FaSignOutAlt />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
-        {/* ---------------- PAGE CONTENT ---------------- */}
-       <main className="pageContent">
-  {children}
-</main>
+        <main className="pageContent">{children}</main>
 
-        {/* ---------------- CHATBOT ---------------- */}
         <Chatbot />
-
       </div>
     </div>
   );

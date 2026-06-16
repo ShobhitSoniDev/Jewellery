@@ -282,8 +282,8 @@ debugger
           <h2>Add New Product</h2>
           <hr />
 
-       <div class="form-row">
-      <div class="form-group">
+       <div className="form-row">
+      <div className="form-group">
         <label>Metal Name</label>
         <select
   className="dropdown-select"
@@ -313,7 +313,7 @@ debugger
           <p style={{ color: "red" }}>{error.selectedMetal}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Category Name</label>
         <select
         className='dropdown-select'
@@ -338,8 +338,8 @@ debugger
     </div>
 
    
-    <div class="form-row">
-      <div class="form-group">
+    <div className="form-row">
+      <div className="form-group">
         <label>Product Name</label>
         <input type="text" placeholder="Enter product name" value={productname} onChange={(e) => {
                           const val = e.target.value;
@@ -375,7 +375,7 @@ debugger
         <p style={{color:"red"}}>{error?.productname}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Gross Weight</label>
         <input type="text" placeholder="Enter gross weight" value={grossweight} onChange={(e) => {
                           const val = e.target.value;
@@ -415,8 +415,8 @@ debugger
         <p style={{color:"red"}}>{error?.grossweight}</p>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
+    <div className="form-row">
+      <div className="form-group">
         <label>Net Weight</label>
         <input type="text" placeholder="Enter net weight" value={netweight} onChange={(e) => {
                           const val = e.target.value;
@@ -455,7 +455,7 @@ debugger
         <p style={{color:"red"}}>{error?.netweight}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Wastage Weight</label>
         <input type="text" placeholder="Enter wastage weight" value={wastageweight} onChange={(e) => {
                           const val = e.target.value;
@@ -494,8 +494,8 @@ debugger
         <p style={{color:"red"}}>{error?.wastageweight}</p>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
+    <div className="form-row">
+      <div className="form-group">
         <label>Making Charge</label>
         <input type="text" placeholder="Enter making charge" value={makingcharge} onChange={(e) => {
                           const val = e.target.value;
@@ -533,7 +533,7 @@ debugger
         <p style={{color:"red"}}>{error?.makingcharge}</p>
       </div>
 
-      <div class="form-group">
+      <div className="form-group">
         <label>Rate Per Gram</label>
         <input type="text" placeholder="Enter rate per gram" value={ratepergram} onChange={(e) => {
                           const val = e.target.value;
@@ -571,8 +571,8 @@ debugger
         <p style={{color:"red"}}>{error?.ratepergram}</p>
       </div>
     </div>
-      <div class="form-row">
-      <div class="form-group">
+      <div className="form-row">
+      <div className="form-group">
         <label>Total Quantity</label>
         <input type="text" placeholder="Enter total quantity" value={totalquantity} onChange={(e) => {
                           const val = e.target.value;
@@ -609,7 +609,7 @@ debugger
   }}/>
         <p style={{color:"red"}}>{error?.totalquantity}</p>
       </div>
-      <div class="form-group">
+      <div className="form-group">
        
       </div>
       </div>

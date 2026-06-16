@@ -49,3 +49,34 @@ debugger
     });
   }
 };
+export const Dashboard_GetData = async () => {
+  try {
+    debugger
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.get(
+      API_ENDPOINTS.Reports.GetDashboardData_URL,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(error);
+
+    let message = "Something went wrong";
+
+    if (error instanceof Error) {
+      message = error.message;
+    }
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: message,
+    });
+  }
+};

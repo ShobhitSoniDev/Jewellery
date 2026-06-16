@@ -48,7 +48,6 @@ export const StockTransaction_Manage = async (payload: StockTransaction_ManagePa
 };
 export const LoanEntry_Manage = async (formData: FormData) => {
   try {
-    debugger
     const token = sessionStorage.getItem("token");
     // 🔍 Debug
     console.log("===== FORM DATA =====");

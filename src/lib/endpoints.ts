@@ -17,6 +17,9 @@ export const API_ENDPOINTS = {
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",
     LoanEntry_Manage_URL: "/transactions/LoanEntry_Save",
+  },
+  Reports: {
+    GetLoanEntryReport_URL: "/reports/GetLoanEntry"
   }
   ,
   AI: {

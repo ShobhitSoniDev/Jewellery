@@ -41,3 +41,28 @@ a {
   }
 }
 
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.loan-table {
+  min-width: 1400px;
+  width: 100%;
+}
+
+.loan-table th,
+.loan-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.action-buttons button {
+  white-space: nowrap;
+}

@@ -590,7 +590,14 @@ setImagePreviews([]);
             <div className="form-group">
               <label>Customer</label>
 
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div
+  style={{
+    display: "flex",
+    gap: "8px",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+  }}
+>
                 <div style={{ flex: 1 }}>
                 <Select
   options={customerList.map((item) => ({
@@ -614,14 +621,19 @@ setImagePreviews([]);
 />
                   <p style={{color:"red"}}>{error.CustomerCode}</p>
                 </div>
-
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => setShowCustomerModal(true)}
-                >
-                  + Add
-                </button>
+<button
+  type="button"
+  className="btn-primary"
+  style={{
+    padding: "6px 10px",
+    fontSize: "12px",
+    height: "38px",
+    flexShrink: 0,
+  }}
+  onClick={() => setShowCustomerModal(true)}
+>
+  + Add
+</button>
               </div>
             </div>
 

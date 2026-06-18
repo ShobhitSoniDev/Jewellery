@@ -75,7 +75,7 @@ const Signup = () => {
 
   return (
     <div className="authPage signupAuthPage">
-      <section className="authHero" aria-label="Jewelry Stock">
+      <section className="authHero" aria-label="Jewellery Stock">
         <div className="authHeroContent">
           <span className="authHeroIcon">
             <FaGem />
@@ -88,7 +88,7 @@ const Signup = () => {
       <main className="authCard signupAuthCard">
         <div className="authLogo">
           <FaGem className="authGem" />
-          <h2>Jewelry Stock</h2>
+          <h2>Jewellery Stock</h2>
         </div>
 
         <div className="authTitle">

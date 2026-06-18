@@ -78,8 +78,15 @@ export const LoanEntry_Manage = async (formData: FormData) => {
 export interface LoanTransactionManagePayload {
   LoanId: number;
   TransactionType: string;
+  TransactionTypeId?: number;
   Amount?: number;
   TransactionDate: string;
+  PaymentMode?: string;
+  ReferenceNo?: string;
+  DiscountAmount?: number;
+  PaidTo?: string;
+  ClosureReason?: string;
+  CustomerConfirmed?: boolean;
   Remarks?: string;
   TypeId: number;
 }

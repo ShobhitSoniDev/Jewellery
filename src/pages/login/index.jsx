@@ -40,12 +40,12 @@ const Login = () => {
 
   return (
     <div className="authPage">
-      <section className="authHero" aria-label="Jewelry Stock">
+      <section className="authHero" aria-label="Jewellery Stock">
         <div className="authHeroContent">
           <span className="authHeroIcon">
             <FaGem />
           </span>
-          <h1>Jewelry Stock</h1>
+          <h1>Jewellery Stock</h1>
           <p>Inventory, girvi, stock movement aur customer records ko ek clean dashboard se manage karein.</p>
         </div>
       </section>
@@ -53,7 +53,7 @@ const Login = () => {
       <main className="authCard">
         <div className="authLogo">
           <FaGem className="authGem" />
-          <h2>Jewelry Stock</h2>
+          <h2>Jewellery Stock</h2>
         </div>
 
         <div className="authTitle">

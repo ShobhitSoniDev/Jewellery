@@ -292,7 +292,7 @@ export default function DashboardLayout({ children }) {
               <FaGem />
             </span>
             <span>
-              <strong>Jewelry Stock</strong>
+              <strong>Jewellery Stock</strong>
               <small>Inventory & Girvi</small>
             </span>
           </Link>

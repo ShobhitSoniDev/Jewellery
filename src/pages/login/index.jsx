@@ -1,6 +1,6 @@
 import Link from "next/link";
 import React, { useState } from "react";
-import { FaGem } from "react-icons/fa";
+import { FaGem, FaLock, FaUser } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { LoginUser } from "@/lib/services/AuthService";
 
@@ -10,76 +10,60 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // const handleLogin = (e) => {
-  //   e.preventDefault(); // form reload stop
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setError("");
 
-  //   if (email === "shobhit" && password === "shobhit#1234") {
-  //     router.push("/dashboard");
-  //   } else {
-  //     if(email==="" && password===""){
-  //     setError("Username and password cannot be empty");
-  //   }
-  //   else if(email===""){
-  //     setError("Username cannot be empty");
-  //   }
-  //   else if(password===""){
-  //     setError("Password cannot be empty");
-  //   }
-  //   else{
-  //     setError("Invalid username or password");
-  //   }
-  
-  //   }
-  // };
-const handleLogin = async (event) => {
-  event.preventDefault(); // stop page reload
+    const payload = {
+      username: email,
+      password,
+    };
 
-  const payload = {
-    username: email,
-    password: password
+    try {
+      const response = await LoginUser(payload);
+
+      if (response.code === 1) {
+        sessionStorage.setItem("token", response.data.token);
+        localStorage.setItem("userName", response.data.UserName);
+        router.push("/dashboard");
+      } else {
+        setError(response.message || "Login failed");
+      }
+
+      setEmail("");
+      setPassword("");
+    } catch (error) {
+      console.error("Login Error:", error);
+      setError(error.message || "Something went wrong");
+    }
   };
 
-  try {
-    const response = await LoginUser(payload);
-
-    if (response.code === 1) {
-      debugger
-      sessionStorage.setItem("token", response.data.token); // token
-      localStorage.setItem("userName", response.data.UserName); // store username for greeting
-      router.push("/dashboard");
-      // alert(response.message || "Login successful ✅");
-    } else {
-      setError(response.message || "Login failed ❌");
-    }
-
-    setEmail("");
-    setPassword("");
-
-    console.log("API Response:", response);
-
-  } catch (error) {
-    console.error("Login Error:", error);
-    alert(error.message || "Something went wrong ❌");
-  }
-};
-
   return (
-    <div className="wrapper">
-      <div className="card">
+    <div className="authPage">
+      <section className="authHero" aria-label="Jewelry Stock">
+        <div className="authHeroContent">
+          <span className="authHeroIcon">
+            <FaGem />
+          </span>
+          <h1>Jewelry Stock</h1>
+          <p>Inventory, girvi, stock movement aur customer records ko ek clean dashboard se manage karein.</p>
+        </div>
+      </section>
 
-        <div className="logo">
-                  <FaGem className="gem" />
-                  <h2>Jewelry Stock</h2>
-                </div>
-       
+      <main className="authCard">
+        <div className="authLogo">
+          <FaGem className="authGem" />
+          <h2>Jewelry Stock</h2>
+        </div>
 
-        <hr className="divider" />
+        <div className="authTitle">
+          <h3>Welcome Back</h3>
+          <p>Apne account me login karein</p>
+        </div>
 
-        <h3>Welcome Back!</h3>
-
-        <form onSubmit={handleLogin}>
-          <div className="inputGroup">
-            <span>✉️</span>
+        <form onSubmit={handleLogin} className="authForm">
+          <div className="authInputGroup">
+            <FaUser />
             <input
               type="text"
               placeholder="Username"
@@ -88,8 +72,8 @@ const handleLogin = async (event) => {
             />
           </div>
 
-          <div className="inputGroup">
-            <span>🔒</span>
+          <div className="authInputGroup">
+            <FaLock />
             <input
               type="password"
               placeholder="Password"
@@ -98,22 +82,24 @@ const handleLogin = async (event) => {
             />
           </div>
 
-          <div className="forgot">
+          <div className="authForgot">
             <Link href="/forgot-password">Forgot Password?</Link>
           </div>
 
-          <button className="button" type="submit">Login</button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+          <button className="authButton" type="submit">
+            Login
+          </button>
+
+          {error && <p className="authError">{error}</p>}
         </form>
 
-        <p className="signupText">
+        <p className="authSwitchText">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="signupLink">
+          <Link href="/signup" className="authLink">
             Sign Up
           </Link>
         </p>
-<h3>Build Test - 16 Jun 2026 5:45 PM</h3>
-      </div>
+      </main>
     </div>
   );
 };

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import React, { useState } from "react";
-import { FaGem, FaUser, FaEnvelope, FaLock, FaMobile } from "react-icons/fa";
+import { FaEnvelope, FaGem, FaLock, FaMobile, FaUser } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { SignUp } from "@/lib/services/AuthService";
-
 import Swal from "sweetalert2";
 
 const Signup = () => {
@@ -20,7 +19,6 @@ const Signup = () => {
     e.preventDefault();
     setError("");
 
-    // ✅ Validation
     if (!username) {
       setError("Username cannot be empty");
       return;
@@ -48,52 +46,58 @@ const Signup = () => {
 
     const payload = {
       userName: username,
-      email: email,
+      email,
       mobileNo: mobile,
-      password: password,
+      password,
       type: 1,
     };
 
     try {
-      debugger;
       const response = await SignUp(payload);
 
       await Swal.fire({
         icon: "success",
         title: "Success",
-        text:
-          response?.data?.[0]?.Message ||
-          "Account created successfully",
-        confirmButtonColor: "#3085d6",
+        text: response?.data?.[0]?.Message || "Account created successfully",
+        confirmButtonColor: "#d69a32",
       });
 
-      // ✅ Redirect after success
       router.push("/login");
-
     } catch (error) {
       Swal.fire({
         icon: "error",
         title: "Error!",
-        text:
-          error?.response?.data?.[0]?.Message ||
-          "Failed to save",
-        confirmButtonColor: "#3085d6",
+        text: error?.response?.data?.[0]?.Message || "Failed to save",
+        confirmButtonColor: "#d69a32",
       });
     }
   };
 
   return (
-    <div className="wrapper">
-      <div className="card">
-        <div className="logo">
-          <FaGem className="gem" />
+    <div className="authPage signupAuthPage">
+      <section className="authHero" aria-label="Jewelry Stock">
+        <div className="authHeroContent">
+          <span className="authHeroIcon">
+            <FaGem />
+          </span>
+          <h1>Start Managing Smarter</h1>
+          <p>Customer, loan, metal aur product data ko responsive dashboard me securely manage karein.</p>
+        </div>
+      </section>
+
+      <main className="authCard signupAuthCard">
+        <div className="authLogo">
+          <FaGem className="authGem" />
           <h2>Jewelry Stock</h2>
         </div>
 
-        <h3>Create Your Account</h3>
+        <div className="authTitle">
+          <h3>Create Account</h3>
+          <p>Naya account banane ke liye details bharein</p>
+        </div>
 
-        <form onSubmit={handleSignup}>
-          <div className="inputGroup">
+        <form onSubmit={handleSignup} className="authForm">
+          <div className="authInputGroup">
             <FaUser />
             <input
               type="text"
@@ -103,7 +107,7 @@ const Signup = () => {
             />
           </div>
 
-          <div className="inputGroup">
+          <div className="authInputGroup">
             <FaEnvelope />
             <input
               type="email"
@@ -113,7 +117,7 @@ const Signup = () => {
             />
           </div>
 
-          <div className="inputGroup">
+          <div className="authInputGroup">
             <FaMobile />
             <input
               type="text"
@@ -123,7 +127,7 @@ const Signup = () => {
             />
           </div>
 
-          <div className="inputGroup">
+          <div className="authInputGroup">
             <FaLock />
             <input
               type="password"
@@ -133,7 +137,7 @@ const Signup = () => {
             />
           </div>
 
-          <div className="inputGroup">
+          <div className="authInputGroup">
             <FaLock />
             <input
               type="password"
@@ -143,18 +147,20 @@ const Signup = () => {
             />
           </div>
 
-          <button className="button">Sign Up</button>
+          <button className="authButton" type="submit">
+            Sign Up
+          </button>
 
-          {error && <p style={{ color: "red" }}>{error}</p>}
+          {error && <p className="authError">{error}</p>}
         </form>
 
-        <p className="loginText">
+        <p className="authSwitchText">
           Already have an account?{" "}
-          <span>
-            <Link href="/login">Login</Link>
-          </span>
+          <Link href="/login" className="authLink">
+            Login
+          </Link>
         </p>
-      </div>
+      </main>
     </div>
   );
 };

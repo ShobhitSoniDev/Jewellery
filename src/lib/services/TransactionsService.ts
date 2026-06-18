@@ -74,3 +74,45 @@ export const LoanEntry_Manage = async (formData: FormData) => {
     throw error;
   }
 };
+
+export interface LoanTransactionManagePayload {
+  LoanId: number;
+  TransactionType: string;
+  Amount?: number;
+  TransactionDate: string;
+  Remarks?: string;
+  TypeId: number;
+}
+
+export const LoanTransaction_Manage = async (
+  payload: LoanTransactionManagePayload
+) => {
+  try {
+    const token = sessionStorage.getItem("token");
+    const response = await api.post(
+      API_ENDPOINTS.Transactions.LoanTransaction_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(error);
+
+    let message = "Something went wrong";
+
+    if (error instanceof Error) {
+      message = error.message;
+    }
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: message,
+    });
+  }
+};

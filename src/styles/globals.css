@@ -380,3 +380,190 @@ td:last-child {
     border-radius: 12px;
   }
 }
+
+/* App-wide responsive hardening */
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+main,
+section,
+article,
+aside,
+header,
+footer,
+div {
+  min-width: 0;
+}
+
+.pageContent > * {
+  max-width: 100%;
+}
+
+.form-card,
+.table-card,
+.form-container,
+.tableBox {
+  width: 100%;
+}
+
+.form-container {
+  max-width: min(100%, 980px);
+  margin: 0 auto 24px;
+}
+
+.form-row > .form-group {
+  flex: 1 1 0;
+}
+
+.form-group,
+.form-group > div {
+  min-width: 0;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea,
+.dropdown-select,
+.form-control {
+  padding: 10px 12px;
+}
+
+.table-card,
+.tableBox,
+.table-responsive,
+.loan-history-wrapper {
+  border-radius: 12px;
+}
+
+.table-card table,
+.tableBox table,
+.table-responsive table,
+.loan-history-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-responsive::-webkit-scrollbar,
+.table-card::-webkit-scrollbar,
+.tableBox::-webkit-scrollbar,
+.loan-history-wrapper::-webkit-scrollbar {
+  height: 9px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.table-card::-webkit-scrollbar-thumb,
+.tableBox::-webkit-scrollbar-thumb,
+.loan-history-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.custom-modal-overlay {
+  overflow-y: auto;
+}
+
+@media (max-width: 1200px) {
+  .content-wrapper {
+    max-width: 100%;
+  }
+
+  .form-card {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .header,
+  .tabs {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .stats {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 12px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .form-container {
+    margin: 0 auto 16px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .form-row {
+    width: 100%;
+  }
+
+  .form-group {
+    max-width: 100%;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea,
+  .dropdown-select,
+  .form-control {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .table-card,
+  .tableBox {
+    padding: 12px;
+  }
+
+  .table-card table,
+  .tableBox table,
+  .table-responsive table,
+  .loan-history-wrapper table {
+    min-width: 720px;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .tabs span {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .pageContent {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+
+  .form-card,
+  .form-container,
+  .table-card,
+  .tableBox {
+    border-radius: 8px;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn,
+  .button {
+    width: 100%;
+  }
+}

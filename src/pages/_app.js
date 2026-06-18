@@ -5,6 +5,7 @@ import "../styles/dashboard.css";
 import "../styles/layout.css";
 import "../styles/metalmaster.css";
 import "../styles/productmaster.css";
+import "../styles/LoanTransaction.css";
 import Layout from '@/pages/layout'
 import { useRouter } from "next/router";
 import { useEffect } from "react";

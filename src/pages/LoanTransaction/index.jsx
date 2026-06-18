@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect,useRef  } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { CustomerMaster_Manage } from "@/lib/services/MasterService";
+import { CustomerMaster_Manage,GetLoan_Masters  } from "@/lib/services/MasterService";
 import { LoanEntry_Manage } from "@/lib/services/TransactionsService";
 import LoanDetailViewModal from "@/components/CommonView/LoanDetailView";
 import Select from "react-select";
@@ -40,6 +40,11 @@ const [selectedLoan, setSelectedLoan] = useState(null);
     mobile: "",
     address: ""
   });
+  const [masterData, setMasterData] = useState({
+  loanType_Master: [],
+  loanInterestType_Master: [],
+  loanMetalType_Master: [],
+});
 const buttonName = editId ? "Update" : "Save";
   // 📸 Image Preview
 const handleImageChange = (e) => {
@@ -80,16 +85,21 @@ debugger
       setCustomerList(list);
     })();
   }, []);
+// Calculate End Date
 useEffect(() => {
-  if (!startDate || !expectedLoanDuration) return;
+  if (!startDate || !expectedLoanDuration || !interestType) return;
 
   const start = new Date(startDate);
   const end = new Date(start);
 
-  if (interestType === "Monthly") {
-    end.setMonth(end.getMonth() + parseInt(expectedLoanDuration));
-  } else {
-    end.setFullYear(end.getFullYear() + parseInt(expectedLoanDuration));
+  // InterestTypeId
+  // 1 = Monthly
+  // 2 = Yearly
+
+  if (Number(interestType) === 1) {
+    end.setMonth(end.getMonth() + Number(expectedLoanDuration));
+  } else if (Number(interestType) === 2) {
+    end.setFullYear(end.getFullYear() + Number(expectedLoanDuration));
   }
 
   const calculatedEndDate = end.toISOString().split("T")[0];
@@ -99,15 +109,18 @@ useEffect(() => {
   }
 }, [startDate, expectedLoanDuration, interestType]);
 
+
+// Calculate Duration from Start Date & End Date
 useEffect(() => {
-  if (!startDate || !endDate) return;
+  if (!startDate || !endDate || !interestType) return;
 
   const start = new Date(startDate);
   const end = new Date(endDate);
 
   let duration = 0;
 
-  if (interestType === "Monthly") {
+  if (Number(interestType) === 1) {
+    // Monthly
     duration =
       (end.getFullYear() - start.getFullYear()) * 12 +
       (end.getMonth() - start.getMonth());
@@ -119,7 +132,8 @@ useEffect(() => {
     if (duration === 0 && end > start) {
       duration = 1;
     }
-  } else {
+  } else if (Number(interestType) === 2) {
+    // Yearly
     duration = end.getFullYear() - start.getFullYear();
 
     if (
@@ -140,30 +154,30 @@ useEffect(() => {
   }
 }, [startDate, endDate, interestType]);
 
+
+// Calculate Interest
 useEffect(() => {
-  if (!amount || !interestRate || !expectedLoanDuration) {
+  const P = parseFloat(amount) || 0;
+  const R = parseFloat(interestRate) || 0;
+  const T = parseFloat(expectedLoanDuration) || 0;
+
+  if (!P || !R || !T) {
     setestimatedInterest(0);
     setestimatedTotalPayable(0);
     return;
   }
 
-  const P = parseFloat(amount) || 0;
-  const R = parseFloat(interestRate) || 0;
-  const T = parseFloat(expectedLoanDuration) || 0;
-
   const interest = (P * R * T) / 100;
 
   setestimatedInterest(interest);
   setestimatedTotalPayable(P + interest);
-}, [amount, interestRate, expectedLoanDuration, interestType]);
-
+}, [amount, interestRate, expectedLoanDuration]);
 
 useEffect(() => {
   if (!CustomerCode) {
     setLoanHistory([]);
     return;
   }
-
   loadLoanHistory();
 }, [CustomerCode]);
 
@@ -181,6 +195,28 @@ const loadLoanHistory = async () => {
     setLoanHistory([]);
   }
 };
+
+const loadMasters = async () => {
+  try {
+    const response = await GetLoan_Masters(); // API Function
+
+    if (response?.code === 1) {
+      setMasterData({
+        loanType_Master: response.data.loanType_Master || [],
+        loanInterestType_Master:
+          response.data.loanInterestType_Master || [],
+        loanMetalType_Master:
+          response.data.loanMetalType_Master || [],
+      });
+    }
+  } catch (error) {
+    console.error("Master API Error:", error);
+  }
+};
+
+useEffect(() => {
+  loadMasters();
+}, []);
 
   // 🔥 ADD CUSTOMER
   const handleAddCustomer = async () => {
@@ -312,8 +348,9 @@ const handleValidation = () => {
     newerror.endDate = "End date is required";
     flag = false;
   }
+  debugger
   // GIRVI specific fields
-  if (loanType === "girvi") {
+  if (loanType === "1") {
 
     if (!metalType) {
       newerror.metalType = "Metal type is required";
@@ -350,7 +387,7 @@ const handleValidation = () => {
     if (!handleValidation()) return;
 
     const formData = new FormData();
-
+debugger
     formData.append("LoanId", editId ? editId.toString() : "0");
     formData.append("CustomerCode", CustomerCode?.toString());
     formData.append("LoanType", loanType || "");
@@ -369,8 +406,8 @@ const handleValidation = () => {
       endDate ? new Date(endDate).toISOString() : ""
     );
     formData.append("MetalType", metalType || "");
-    formData.append("Weight", weight?.toString());
-    formData.append("ItemCount", itemCount?.toString());
+    formData.append("Weight", weight?.toString() || "");
+    formData.append("ItemCount", itemCount?.toString() || "");
     formData.append("Description", description || "");
     formData.append("TypeId", editId ? "2" : "1");
 
@@ -419,9 +456,9 @@ const handleEdit = (item) => {
   setEditId(item.LoanId);
 
   setCustomerCode((item.CustomerCode));
-  setLoanType(item.LoanType || "girvi");
+  setLoanType(item.LoanType || "1");
   setAmount(item.Amount || "");
-  setInterestType(item.InterestType || "Monthly");
+  setInterestType(item.InterestType || "1");
   setInterestRate(item.InterestRate || "");
   setexpectedLoanDuration(item.Duration || "");
 
@@ -520,9 +557,9 @@ const handleView = async (loanId) => {
 // 🔄 RESET FORM
   const resetForm = () => {
     setEditId(null);
-    setLoanType("girvi");
+    setLoanType("1");
     setAmount("");
-    setInterestType("Monthly");
+    setInterestType("1");
     setInterestRate("");
     setStartDate("");
 setEndDate("");
@@ -591,13 +628,21 @@ setImagePreviews([]);
             <div className="form-group">
               <label>Loan Type</label>
               <select
-                className="dropdown-select"
-                value={loanType}
-                onChange={(e) => setLoanType(e.target.value)}
-              >
-                <option value="girvi">Jewellery Deposit</option>
-                <option value="cash">Without Jewellery</option>
-              </select>
+  className="dropdown-select"
+  value={loanType}
+  onChange={(e) => setLoanType(e.target.value)}
+>
+  <option value="">--Select Loan Type--</option>
+
+  {masterData.loanType_Master.map((item) => (
+    <option
+      key={item.LoanTypeId}
+      value={item.LoanTypeId}
+    >
+      {item.LoanName}
+    </option>
+  ))}
+</select>
               <p style={{color:"red"}}>{error.loanType}</p>
             </div>
           </div>
@@ -613,13 +658,21 @@ setImagePreviews([]);
             <div className="form-group">
               <label>Interest Type</label>
               <select
-                className="dropdown-select"
-                value={interestType}
-                onChange={(e) => setInterestType(e.target.value)}
-              >
-                <option>Monthly</option>
-                <option>Yearly</option>
-              </select>
+  className="dropdown-select"
+  value={interestType}
+  onChange={(e) => setInterestType(e.target.value)}
+>
+  <option value="">--Select Interest Type--</option>
+
+  {masterData.loanInterestType_Master.map((item) => (
+    <option
+      key={item.InterestTypeId}
+      value={item.InterestTypeId}
+    >
+      {item.InterestType}
+    </option>
+  ))}
+</select>
               <p style={{color:"red"}}>{error.interestType}</p>
             </div>
           </div>
@@ -667,22 +720,37 @@ setImagePreviews([]);
     Estimated Total Payable: ₹ {estimatedTotalPayable}
   </p>
 </div>
-<div className="form-group">  </div>
+
+
+<div className="form-group">
+                  <label>Description</label>
+                  <input value={description} onChange={(e) => setDescription(e.target.value)} />
+                </div>
+
 </div>
           {/* GIRVI */}
-          {loanType === "girvi" && (
+          {loanType === "1" && (
             <>
               <h3>Jewellery Details</h3>
 
               <div className="form-row">
                 <div className="form-group">
                   <label>Metal</label>
-                  <select value={metalType} onChange={(e) => setMetalType(e.target.value)}>
-                    <option value="">--Select--</option>
-                    <option>Gold</option>
-                    <option>Silver</option>
-                    <option>Both</option>
-                  </select>
+                  <select
+  value={metalType}
+  onChange={(e) => setMetalType(e.target.value)}
+>
+  <option value="">--Select Metal--</option>
+
+  {masterData.loanMetalType_Master.map((item) => (
+    <option
+      key={item.LoanMetalTypeId}
+      value={item.LoanMetalTypeId}
+    >
+      {item.LoanMetalType}
+    </option>
+  ))}
+</select>
                   <p style={{color:"red"}}>{error.metalType}</p>
                 </div>
 
@@ -726,18 +794,17 @@ setImagePreviews([]);
               <div className="form-row">
 
 <div className="form-group">
-                  <label>Description</label>
-                  <input value={description} onChange={(e) => setDescription(e.target.value)} />
+                 
                 </div>
 <div className="form-group"></div>
 </div>
-              <div className="btn-group">
+              
+            </>
+          )}
+<div className="btn-group">
                 <button className="btn-primary" onClick={handleSubmit}>{buttonName}</button>
                 <button className="btn-secondary" onClick={resetForm}>Cancel</button>
               </div>
-            </>
-          )}
-
         </div>
 
         {/* 🔥 MODAL */}

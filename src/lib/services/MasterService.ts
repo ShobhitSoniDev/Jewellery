@@ -168,3 +168,24 @@ export const CustomerMaster_Manage = async (payload: AddCustomerPayload) => {
     throw error; // important for frontend catch
   }
 };
+
+
+export const GetLoan_Masters = async () => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.get(
+      API_ENDPOINTS.Master.GetLoan_Masters_URL,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.log("ERROR => ", error?.response?.data);
+    throw error?.response?.data;
+  }
+};

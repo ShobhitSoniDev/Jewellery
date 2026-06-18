@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
     GetAllCategories_URL: "/master/GetAllCategories",
     GetAllProducts_URL: "/master/GetAllProducts",
     CustomerMaster_Manage_URL: "/master/CustomerMaster_Manage",
+    GetLoan_Masters_URL: "/master/GetLoan_Masters",
   },
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",

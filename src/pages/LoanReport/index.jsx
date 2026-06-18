@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import Swal from "sweetalert2";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { CustomerMaster_Manage} from "@/lib/services/MasterService";
+import { CustomerMaster_Manage,GetLoan_Masters} from "@/lib/services/MasterService";
 import { LoanReport_Search} from "@/lib/services/ReportsService";
 import { LoanEntry_Manage } from "@/lib/services/TransactionsService";
 import LoanDetailViewModal from "@/components/CommonView/LoanDetailView";
@@ -31,10 +31,16 @@ const LoanReport = () => {
 const [showViewModal, setShowViewModal] = useState(false);
 const [selectedLoan, setSelectedLoan] = useState(null);
   const totalPages = Math.ceil(totalRecords / pageSize);
-
-  useEffect(() => {
-    loadCustomerList();
-  }, []);
+const [masterData, setMasterData] = useState({
+  loanType_Master: [],
+  loanInterestType_Master: [],
+  loanMetalType_Master: [],
+  loanStatus_Master: [],
+});
+useEffect(() => {
+  loadCustomerList();
+  loadMasters();
+}, []);
 const validateAmountTo = () => {
   if (
     amountFrom &&
@@ -45,6 +51,25 @@ const validateAmountTo = () => {
     setAmountTo("");
   } else {
     setError("");
+  }
+};
+const loadMasters = async () => {
+  try {
+    const response = await GetLoan_Masters();
+
+    if (response?.code === 1) {
+      setMasterData({
+        loanType_Master: response?.data?.loanType_Master || [],
+        loanInterestType_Master:
+          response?.data?.loanInterestType_Master || [],
+        loanMetalType_Master:
+          response?.data?.loanMetalType_Master || [],
+        loanStatus_Master:
+          response?.data?.loanStatus_Master || [],
+      });
+    }
+  } catch (error) {
+    console.error("Master API Error:", error);
   }
 };
   const loadCustomerList = async () => {
@@ -126,7 +151,7 @@ const handleDelete = async (loanId) => {
         "success"
       );
 
-      loadLoanHistory();
+      handleSearch(currentPage);
     } else {
       Swal.fire(
         "Error",
@@ -232,27 +257,41 @@ const handleView = async (loanId) => {
             <label>Loan Type</label>
 
             <select
-              value={loanType}
-              onChange={(e) => setLoanType(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="girvi">Jewellery Deposit</option>
-              <option value="cash">Without Jewellery</option>
-            </select>
+  className="dropdown-select"
+  value={loanType}
+  onChange={(e) => setLoanType(e.target.value)}
+>
+  <option value="">--Select Loan Type--</option>
+
+  {masterData.loanType_Master.map((item) => (
+    <option
+      key={item.LoanTypeId}
+      value={item.LoanTypeId}
+    >
+      {item.LoanName}
+    </option>
+  ))}
+</select>
           </div>
 
           <div className="form-group">
             <label>Loan Status</label>
 
-            <select
-              value={loanStatus}
-              onChange={(e) => setLoanStatus(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Active">Active</option>
-              <option value="Closed">Closed</option>
-              <option value="Overdue">Overdue</option>
-            </select>
+           <select
+  value={loanStatus}
+  onChange={(e) => setLoanStatus(e.target.value)}
+>
+  <option value="">--Select Status--</option>
+
+  {masterData.loanStatus_Master.map((item) => (
+    <option
+      key={item.LoanStatusId}
+      value={item.LoanStatusId}
+    >
+      {item.StatusName}
+    </option>
+  ))}
+</select>
           </div>
         </div>
 
@@ -260,15 +299,21 @@ const handleView = async (loanId) => {
           <div className="form-group">
             <label>Metal Type</label>
 
-            <select
-              value={metalType}
-              onChange={(e) => setMetalType(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Gold">Gold</option>
-              <option value="Silver">Silver</option>
-              <option value="Both">Both</option>
-            </select>
+             <select
+  value={metalType}
+  onChange={(e) => setMetalType(e.target.value)}
+>
+  <option value="">--Select Metal--</option>
+
+  {masterData.loanMetalType_Master.map((item) => (
+    <option
+      key={item.LoanMetalTypeId}
+      value={item.LoanMetalTypeId}
+    >
+      {item.LoanMetalType}
+    </option>
+  ))}
+</select>
           </div>
 
           <div className="form-group">

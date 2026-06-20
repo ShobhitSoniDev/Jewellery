@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+"use client";
+
+import React, { useMemo, useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { LoanReport_Search } from "@/lib/services/ReportsService";
 import {
@@ -7,16 +9,14 @@ import {
 } from "@/lib/services/TransactionsService";
 import Swal from "sweetalert2";
 import {
-  FaCalendarAlt,
-  FaEye,
-  FaMoneyBillWave,
-  FaRedo,
-  FaRegCalendarCheck,
-  FaRupeeSign,
-  FaSave,
+  FaCheck,
+  FaChevronDown,
+  FaExchangeAlt,
+  FaFileInvoice,
+  FaHistory,
+  FaList,
   FaSearch,
   FaTimes,
-  FaWallet,
 } from "react-icons/fa";
 
 const transactionTypes = [
@@ -30,6 +30,7 @@ const emptyLoan = {
   LoanId: "",
   CustomerName: "",
   LoanStatus: "",
+  LoanType: "",
   MetalType: "",
   Amount: "",
   OutstandingAmount: "",
@@ -38,32 +39,33 @@ const emptyLoan = {
 };
 
 export default function LoanTransaction() {
+  const [customerSearch, setCustomerSearch] = useState("");
   const [loanNumber, setLoanNumber] = useState("");
   const [loans, setLoans] = useState([]);
+  const [searched, setSearched] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(emptyLoan);
   const [transactionHistory, setTransactionHistory] = useState([]);
-  const [transactionType, setTransactionType] = useState("Receive Payment");
+  const [transactionType, setTransactionType] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(toInputDate(new Date()));
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadLoans();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const loanId = getValue(selectedLoan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
   const loanAmount = Number(getValue(selectedLoan, ["Amount", "LoanAmount"], 0)) || 0;
+
   const totalReceived = useMemo(
     () => sumByType(transactionHistory, ["Receive Payment", "Received", "Receipt"]),
     [transactionHistory]
   );
+
   const totalPaid = useMemo(
     () => sumByType(transactionHistory, ["Make Payment", "Paid", "Payment"]),
     [transactionHistory]
   );
+
   const outstandingAmount =
     Number(
       getValue(selectedLoan, [
@@ -74,38 +76,9 @@ export default function LoanTransaction() {
       ])
     ) || Math.max(loanAmount - totalReceived + totalPaid, 0);
 
-  const summaryItems = [
-    {
-      icon: FaWallet,
-      label: "Loan Amount",
-      value: formatCurrency(loanAmount),
-      color: "blue",
-    },
-    {
-      icon: FaMoneyBillWave,
-      label: "Total Received",
-      value: formatCurrency(totalReceived),
-      color: "orange",
-    },
-    {
-      icon: FaRupeeSign,
-      label: "Total Paid",
-      value: formatCurrency(totalPaid),
-      color: "red",
-    },
-    {
-      icon: FaWallet,
-      label: "Outstanding Amount",
-      value: formatCurrency(outstandingAmount),
-      color: "purple",
-    },
-    {
-      icon: FaRegCalendarCheck,
-      label: "Next Due Date",
-      value: formatDisplayDate(getValue(selectedLoan, ["EndDate", "DueDate", "NextDueDate"])),
-      color: "teal",
-    },
-  ];
+  const balanceAmount = Math.max(outstandingAmount - (Number(paymentAmount) || 0), 0);
+  const showBalanceRow = ["Settlement", "Close Loan"].includes(transactionType);
+  const showInterestRow = transactionType === "Make Payment";
 
   const loadLoans = async (searchLoanId = "") => {
     try {
@@ -122,29 +95,56 @@ export default function LoanTransaction() {
         AmountFrom: null,
         AmountTo: null,
         PageNo: 1,
-        PageSize: searchLoanId ? 1 : 20,
+        PageSize: searchLoanId ? 1 : 50,
       };
 
       const response = await LoanReport_Search(payload);
       const data = response?.data || [];
-
       setLoans(data);
-
-      if (searchLoanId) {
-        if (data.length === 0) {
-          setSelectedLoan(emptyLoan);
-          setTransactionHistory([]);
-          Swal.fire("Not Found", "Loan number not found", "warning");
-          return;
-        }
-
-        await selectLoan(data[0]);
-      }
+      return data;
     } catch (error) {
       console.error(error);
-      Swal.fire("Error", "Failed to load loan data", "error");
+      return [];
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    const customerText = customerSearch.trim().toLowerCase();
+    const loanText = loanNumber.trim();
+
+    if (loanText && Number.isNaN(Number(loanText))) {
+      Swal.fire("Validation", "Please enter valid Loan ID", "warning");
+      return;
+    }
+
+    if (!customerText && !loanText) {
+      const data = await loadLoans();
+      setLoans(data);
+      setSearched(true);
+      setSelectedLoan(emptyLoan);
+      setTransactionHistory([]);
+      return;
+    }
+
+    const data = await loadLoans(loanText);
+    const filtered = customerText
+      ? data.filter((item) => {
+          const name = String(getValue(item, ["CustomerName", "customerName"], "")).toLowerCase();
+          const customerId = String(getValue(item, ["CustomerCode", "CustomerId", "customerCode"], "")).toLowerCase();
+          const mobile = String(getValue(item, ["MobileNo", "Mobile", "mobileNo"], "")).toLowerCase();
+          return name.includes(customerText) || customerId.includes(customerText) || mobile.includes(customerText);
+        })
+      : data;
+
+    setLoans(filtered);
+    setSearched(true);
+    setSelectedLoan(emptyLoan);
+    setTransactionHistory([]);
+
+    if (filtered.length === 0) {
+      Swal.fire("Not Found", "Koi loan nahi mila", "warning");
     }
   };
 
@@ -158,8 +158,14 @@ export default function LoanTransaction() {
     }
 
     const details = await loadLoanDetails(id);
-    setSelectedLoan(details || loan || emptyLoan);
-    await loadTransactionHistory(details || loan);
+    const nextLoan = details || loan || emptyLoan;
+    setSelectedLoan(nextLoan);
+    setTransactionType("");
+    setPaymentAmount("");
+    setRemarks("");
+    setPaymentDate(toInputDate(new Date()));
+    setHistoryOpen(false);
+    await loadTransactionHistory(nextLoan);
   };
 
   const loadLoanDetails = async (id) => {
@@ -202,23 +208,24 @@ export default function LoanTransaction() {
     }
   };
 
-  const handleSearchLoan = () => {
-    if (!loanNumber.trim()) {
-      Swal.fire("Validation", "Please enter loan number", "warning");
-      return;
-    }
-
-    loadLoans(loanNumber.trim());
-  };
-
   const handleSaveTransaction = async () => {
     if (!loanId) {
       Swal.fire("Validation", "Please search and select a loan first", "warning");
       return;
     }
 
-    if (!["Settlement", "Close Loan"].includes(transactionType) && !paymentAmount) {
-      Swal.fire("Validation", "Payment amount is required", "warning");
+    if (!transactionType) {
+      Swal.fire("Validation", "Transaction type is required", "warning");
+      return;
+    }
+
+    if (!paymentDate) {
+      Swal.fire("Validation", "Transaction date is required", "warning");
+      return;
+    }
+
+    if (!paymentAmount) {
+      Swal.fire("Validation", "Transaction amount is required", "warning");
       return;
     }
 
@@ -228,7 +235,7 @@ export default function LoanTransaction() {
       const response = await LoanTransaction_Manage({
         LoanId: Number(loanId),
         TransactionType: transactionType,
-        Amount: paymentAmount ? Number(paymentAmount) : 0,
+        Amount: Number(paymentAmount),
         TransactionDate: paymentDate,
         Remarks: remarks,
         TypeId: 1,
@@ -236,13 +243,16 @@ export default function LoanTransaction() {
 
       if (response?.code === 1 || response?.data?.[0]?.Code === 1) {
         Swal.fire("Saved!", response?.data?.[0]?.Message || "Transaction saved", "success");
-        setPaymentAmount("");
-        setRemarks("");
+        resetTransactionForm();
         const latestLoan = await loadLoanDetails(loanId);
         setSelectedLoan(latestLoan || selectedLoan);
         await loadTransactionHistory(latestLoan || selectedLoan);
       } else {
-        Swal.fire("Error", response?.message || response?.data?.[0]?.Message || "Save failed", "error");
+        Swal.fire(
+          "Error",
+          response?.message || response?.data?.[0]?.Message || "Save failed",
+          "error"
+        );
       }
     } catch (error) {
       console.error(error);
@@ -252,265 +262,296 @@ export default function LoanTransaction() {
     }
   };
 
-  const resetForm = () => {
-    setTransactionType("Receive Payment");
+  const resetTransactionForm = () => {
+    setTransactionType("");
     setPaymentAmount("");
     setPaymentDate(toInputDate(new Date()));
     setRemarks("");
   };
 
+  const clearAll = () => {
+    setCustomerSearch("");
+    setLoanNumber("");
+    setLoans([]);
+    setSearched(false);
+    setSelectedLoan(emptyLoan);
+    setTransactionHistory([]);
+    resetTransactionForm();
+  };
+
   return (
     <ProtectedRoute>
-      <div className="loanTransactionPage">
-        <div className="loanPageHeader">
-          <div>
-            <h1>Loan Transaction</h1>
-            <p>Home &gt; Loan Transaction</p>
+      <div className="loanTxnPage">
+        <div className="loanSearchCard">
+          <div className="sectionTitle">
+            <FaSearch />
+            Search Loan
+          </div>
+
+          <div className="searchGrid">
+            <div className="fieldGroup">
+              <label>Customer Search</label>
+              <input
+                value={customerSearch}
+                onChange={(event) => setCustomerSearch(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && handleSearch()}
+                placeholder="Name, Customer ID ya Mobile No."
+                autoComplete="off"
+              />
+              <div className="searchHint">
+                <span>Name</span>
+                <span>Customer ID</span>
+                <span>Mobile No.</span>
+              </div>
+            </div>
+
+            <div className="orDivider">OR</div>
+
+            <div className="fieldGroup">
+              <label>Loan ID</label>
+              <input
+                value={loanNumber}
+                onChange={(event) => setLoanNumber(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && handleSearch()}
+                placeholder="Enter Loan ID"
+                autoComplete="off"
+              />
+              <div className="searchHint">
+                <span>Loan ID</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="actionRow">
+            <button className="btnSearch" onClick={handleSearch} disabled={loading}>
+              <FaSearch />
+              {loading ? "Searching..." : "Search"}
+            </button>
+            <button className="btnClear" onClick={clearAll}>
+              Clear
+            </button>
           </div>
         </div>
 
-        <section className="loanPanel">
-          <h2>1. Loan Details</h2>
-
-          <div className="loanGrid loanGridFour">
-            <div className="loanField">
-              <label>Loan Number *</label>
-              <div className="loanInputWrap">
-                <input
-                  type="text"
-                  placeholder="Search Loan Number..."
-                  value={loanNumber}
-                  onChange={(e) => setLoanNumber(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearchLoan()}
-                />
-                <button
-                  className="loanIconButton"
-                  type="button"
-                  onClick={handleSearchLoan}
-                  aria-label="Search loan"
-                  disabled={loading}
-                >
-                  <FaSearch />
-                </button>
-              </div>
-            </div>
-
-            <FormField label="Customer Name" value={getValue(selectedLoan, ["CustomerName"])} readOnly />
-
-            <div className="loanField">
-              <label>Loan Status</label>
-              <span className="loanStatusBadge">
-                {getValue(selectedLoan, ["LoanStatus", "StatusName"], "-")}
+        {searched && (
+          <div className="loanResultCard">
+            <div className="sectionTitle sectionTitleInline">
+              <span>
+                <FaList />
+                Loan Results
               </span>
+              <small>({loans.length} found)</small>
             </div>
 
-            <FormField label="Metal Type" value={getValue(selectedLoan, ["MetalType", "LoanMetalType"])} readOnly />
-            <FormField label="Loan Amount" value={formatCurrency(loanAmount)} muted readOnly />
-            <FormField label="Outstanding Amount" value={formatCurrency(outstandingAmount)} danger readOnly />
-            <FormField
-              label="Loan Date"
-              value={formatDisplayDate(getValue(selectedLoan, ["StartDate", "LoanDate"]))}
-              icon={<FaCalendarAlt />}
-              readOnly
-            />
-            <FormField
-              label="End Date"
-              value={formatDisplayDate(getValue(selectedLoan, ["EndDate", "DueDate"]))}
-              icon={<FaCalendarAlt />}
-              readOnly
-            />
+            <div className="listHeader">
+              <span>Loan ID / Customer</span>
+              <span>Loan Type</span>
+              <span>Outstanding</span>
+              <span>Status</span>
+              <span />
+            </div>
+
+            <div className="loanList">
+              {loans.length === 0 ? (
+                <div className="emptyState">Koi loan nahi mila.</div>
+              ) : (
+                loans.map((loan, index) => {
+                  const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"], index);
+                  const isSelected = String(loanId) === String(id);
+                  const status = getValue(loan, ["LoanStatus", "Status"], "Active");
+
+                  return (
+                    <div
+                      key={id}
+                      className={`loanItem ${isSelected ? "selected" : ""}`}
+                      onClick={() => selectLoan(loan)}
+                    >
+                      <div>
+                        <div className="lv">{id}</div>
+                        <div className="ll">
+                          {getValue(loan, ["CustomerName", "customerName"], "-")} | {getValue(loan, ["CustomerCode", "CustomerId"], "-")}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="lv">{getValue(loan, ["LoanType", "LoanName"], "-")}</div>
+                        <div className="ll">{getValue(loan, ["MobileNo", "Mobile"], "")}</div>
+                      </div>
+
+                      <div>
+                        <div className="lv">
+                          {formatCurrency(getValue(loan, ["OutstandingAmount", "Outstanding", "Amount"], 0))}
+                        </div>
+                        <div className="ll">Outstanding</div>
+                      </div>
+
+                      <div>
+                        <span className={String(status).toLowerCase().includes("pending") ? "badgePending" : "badgeActive"}>
+                          {status}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`selectBtn ${isSelected ? "active" : ""}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          selectLoan(loan);
+                        }}
+                      >
+                        {isSelected ? "Selected" : "Select"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
+        )}
 
-          {loans.length > 0 && (
-            <div className="loanQuickList">
-              {loans.slice(0, 6).map((loan) => (
-                <button
-                  key={getValue(loan, ["LoanId", "LoanNo", "LoanNumber"])}
-                  type="button"
-                  onClick={() => selectLoan(loan)}
-                >
-                  #{getValue(loan, ["LoanId", "LoanNo", "LoanNumber"])} - {getValue(loan, ["CustomerName"], "Customer")}
-                </button>
-              ))}
+        {loanId && (
+          <div className="loanPanel">
+            <div className="selectedLoanBar">
+              <FaFileInvoice />
+              <strong>{loanId}</strong>
+              <span>|</span>
+              <span>{getValue(selectedLoan, ["CustomerName", "customerName"], "-")}</span>
+              <span>|</span>
+              <span>Outstanding:</span>
+              <strong>{formatCurrency(outstandingAmount)}</strong>
             </div>
-          )}
-        </section>
 
-        <div className="loanMiddleGrid">
-          <div>
-            <section className="loanPanel">
-              <h2>2. Transaction Type</h2>
+            <div className="sectionTitle">
+              <FaExchangeAlt />
+              New Transaction
+            </div>
 
-              <div className="loanRadioBox">
-                {transactionTypes.map((item) => (
-                  <label className="loanRadio" key={item}>
-                    <input
-                      type="radio"
-                      name="transactionType"
-                      checked={transactionType === item}
-                      onChange={() => setTransactionType(item)}
-                    />
-                    <span>{item}</span>
-                  </label>
-                ))}
+            <div className="formGrid">
+              <div className="fieldGroup">
+                <label>Transaction Type *</label>
+                <select
+                  value={transactionType}
+                  onChange={(event) => setTransactionType(event.target.value)}
+                >
+                  <option value="">-- Select Type --</option>
+                  {transactionTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </section>
 
-            <section className="loanPanel">
-              <h2>3. Transaction Details</h2>
-
-              <div className="loanGrid loanGridTwo">
-                <FormField
-                  label="Payment Amount *"
-                  placeholder="Enter amount"
-                  value={paymentAmount}
-                  onChange={setPaymentAmount}
-                  suffix="₹"
-                />
-                <FormField
-                  label="Payment Date *"
+              <div className="fieldGroup">
+                <label>Transaction Date *</label>
+                <input
                   type="date"
                   value={paymentDate}
-                  onChange={setPaymentDate}
+                  onChange={(event) => setPaymentDate(event.target.value)}
                 />
               </div>
 
-              <div className="loanField loanRemarksField">
+              <div className="fieldGroup">
+                <label>Transaction Amount (Rs.) *</label>
+                <input
+                  type="number"
+                  value={paymentAmount}
+                  onChange={(event) => setPaymentAmount(event.target.value)}
+                  placeholder="Enter amount"
+                />
+              </div>
+
+              <div className="fieldGroup">
+                <label>Outstanding Amount (Rs.)</label>
+                <input value={outstandingAmount} disabled />
+              </div>
+
+              {showBalanceRow && (
+                <div className="fieldGroup">
+                  <label>{transactionType === "Settlement" ? "Waiver Amount (Rs.)" : "Write-off Amount (Rs.)"}</label>
+                  <input value={balanceAmount} disabled />
+                </div>
+              )}
+
+              {showInterestRow && (
+                <div className="fieldGroup">
+                  <label>Interest Rate (% p.a.)</label>
+                  <input value={getValue(selectedLoan, ["InterestRate", "Rate"], "")} disabled />
+                  <span className="subNote">Loan ke time ki rate</span>
+                </div>
+              )}
+
+              <div className="fieldGroup fullField">
                 <label>Remarks</label>
-                <textarea
-                  placeholder="Enter remarks (optional)"
-                  maxLength={500}
+                <input
                   value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  onChange={(event) => setRemarks(event.target.value)}
+                  placeholder="Optional remarks"
                 />
-                <small>{remarks.length} / 500</small>
               </div>
-
-              <div className="loanActions">
-                <button
-                  className="loanPrimaryBtn"
-                  type="button"
-                  onClick={handleSaveTransaction}
-                  disabled={saving}
-                >
-                  <FaSave />
-                  {saving ? "Saving..." : "Save Transaction"}
-                </button>
-                <button className="loanSecondaryBtn" type="button" onClick={resetForm}>
-                  <FaRedo />
-                  Reset
-                </button>
-                <button className="loanSecondaryBtn" type="button" onClick={resetForm}>
-                  <FaTimes />
-                  Cancel
-                </button>
-              </div>
-            </section>
-          </div>
-
-          <section className="loanPanel">
-            <h2>4. Transaction History</h2>
-
-            <div className="loanTableWrap">
-              <table className="loanHistoryTable">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Amount (₹)</th>
-                    <th>Remarks</th>
-                    <th>User</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactionHistory.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="loanEmptyCell">
-                        No transaction found
-                      </td>
-                    </tr>
-                  ) : (
-                    transactionHistory.map((item, index) => {
-                      const type = getValue(item, ["TransactionType", "Type", "LoanStatus"], "Loan Created");
-                      return (
-                        <tr key={`${getValue(item, ["LoanId"], index)}-${index}`}>
-                          <td>{formatDisplayDate(getValue(item, ["TransactionDate", "StartDate", "Date"]))}</td>
-                          <td>
-                            <span className={`loanTypePill ${getTypeClass(type)}`}>{type}</span>
-                          </td>
-                          <td className={getAmountClass(type)}>
-                            {formatAmount(getValue(item, ["Amount", "TransactionAmount", "PaidAmount"], 0))}
-                          </td>
-                          <td>{getValue(item, ["Remarks", "Description"], "-")}</td>
-                          <td>{getValue(item, ["UserName", "CreatedBy", "User"], "Admin")}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
             </div>
 
-            <button className="loanViewHistoryBtn" type="button" onClick={() => loanId && loadTransactionHistory(selectedLoan)}>
-              <FaEye />
-              View All History
-            </button>
-          </section>
-        </div>
+            <div className="loanActions">
+              <button className="loanPrimaryBtn" onClick={handleSaveTransaction} disabled={saving}>
+                <FaCheck />
+                {saving ? "Submitting..." : "Submit"}
+              </button>
+              <button className="loanSecondaryBtn" onClick={resetTransactionForm}>
+                <FaTimes />
+                Cancel
+              </button>
+            </div>
 
-        <section className="loanPanel loanSummaryPanel">
-          <h2>Loan Summary</h2>
+            <hr className="loanDivider" />
 
-          <div className="loanSummaryGrid">
-            {summaryItems.map((item) => {
-              const Icon = item.icon;
+            <div className="historyHeader" onClick={() => setHistoryOpen(!historyOpen)}>
+              <span>
+                <FaHistory />
+                Transaction History
+              </span>
+              <FaChevronDown className={historyOpen ? "chevronIcon open" : "chevronIcon"} />
+            </div>
 
-              return (
-                <div className="loanSummaryItem" key={item.label}>
-                  <div className={`loanSummaryIcon ${item.color}`}>
-                    <Icon />
-                  </div>
-                  <div>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                </div>
-              );
-            })}
+            {historyOpen && (
+              <div className="loanTableWrap">
+                <table className="historyTable">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Outstanding</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactionHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="emptyCell">
+                          Koi history nahi hai.
+                        </td>
+                      </tr>
+                    ) : (
+                      transactionHistory.map((item, index) => (
+                        <tr key={index}>
+                          <td>{formatDisplayDate(getValue(item, ["TransactionDate", "Date", "CreatedDate"]))}</td>
+                          <td>{getValue(item, ["TransactionType", "Type"], "-")}</td>
+                          <td>{formatCurrency(getValue(item, ["Amount", "TransactionAmount"], 0))}</td>
+                          <td>{formatCurrency(getValue(item, ["OutstandingAmount", "Outstanding", "BalanceAmount"], 0))}</td>
+                          <td>
+                            <span className="badgeActive">{getValue(item, ["Status", "TransactionStatus"], "Completed")}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </section>
+        )}
       </div>
     </ProtectedRoute>
-  );
-}
-
-function FormField({
-  label,
-  placeholder,
-  value,
-  icon,
-  suffix,
-  muted,
-  danger,
-  readOnly,
-  onChange,
-  type = "text",
-}) {
-  return (
-    <div className="loanField">
-      <label>{label}</label>
-      <div className={`loanInputWrap ${muted ? "muted" : ""} ${danger ? "danger" : ""}`}>
-        <input
-          type={type}
-          placeholder={placeholder}
-          value={value || ""}
-          readOnly={readOnly}
-          onChange={(e) => onChange?.(e.target.value)}
-        />
-        {icon && <span className="loanInputIcon">{icon}</span>}
-        {suffix && <span className="loanInputIcon">{suffix}</span>}
-      </div>
-    </div>
   );
 }
 
@@ -518,64 +559,34 @@ function getValue(source, keys, fallback = "") {
   if (!source) return fallback;
 
   for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== "") return value;
+    if (source[key] !== undefined && source[key] !== null && source[key] !== "") {
+      return source[key];
+    }
   }
 
   return fallback;
 }
 
-function formatCurrency(value) {
-  return `₹ ${formatAmount(value)}`;
+function sumByType(items, typeNames) {
+  return items.reduce((sum, item) => {
+    const type = String(getValue(item, ["TransactionType", "Type"], "")).toLowerCase();
+    const isMatch = typeNames.some((name) => type.includes(String(name).toLowerCase()));
+    return isMatch ? sum + (Number(getValue(item, ["Amount", "TransactionAmount"], 0)) || 0) : sum;
+  }, 0);
 }
 
-function formatAmount(value) {
-  const number = Number(value) || 0;
-  return number.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function toInputDate(date) {
+  return new Date(date).toISOString().split("T")[0];
+}
+
+function formatCurrency(value) {
+  const amount = Number(value) || 0;
+  return `Rs. ${amount.toLocaleString("en-IN")}`;
 }
 
 function formatDisplayDate(value) {
   if (!value) return "-";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).replace(/ /g, "-");
-}
-
-function toInputDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
-}
-
-function sumByType(rows, possibleTypes) {
-  return rows.reduce((total, item) => {
-    const type = String(getValue(item, ["TransactionType", "Type"], "")).toLowerCase();
-    const matched = possibleTypes.some((x) => type.includes(x.toLowerCase()));
-
-    if (!matched) return total;
-
-    return total + (Number(getValue(item, ["Amount", "TransactionAmount", "PaidAmount"], 0)) || 0);
-  }, 0);
-}
-
-function getTypeClass(type) {
-  const value = String(type).toLowerCase();
-  if (value.includes("receive")) return "receive";
-  if (value.includes("make") || value.includes("paid")) return "make";
-  return "created";
-}
-
-function getAmountClass(type) {
-  const value = String(type).toLowerCase();
-  if (value.includes("receive")) return "loanAmountGreen";
-  if (value.includes("make") || value.includes("paid")) return "loanAmountRed";
-  return "loanAmountDark";
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("en-IN");
 }

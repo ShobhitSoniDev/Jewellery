@@ -1,0 +1,17 @@
+
+> sparkle@0.1.0 dev
+> next dev -p 3004
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3004
+   - Network:      http://100.64.0.95:3004
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 14.2s
+ ○ Compiling /LoanTransaction ...
+ ✓ Compiled /LoanTransaction in 48.6s (506 modules)
+ GET /LoanTransaction 200 in 342ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 682ms (512 modules)
+ GET /login 200 in 1125ms

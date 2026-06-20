@@ -602,7 +602,7 @@ setImagePreviews([]);
                 <Select
   options={customerList.map((item) => ({
     value: item.CustomerCode,
-    label: `${item.CustomerName} (${item.MobileNo})`,
+    label: `${item.CustomerName} | ${item.MobileNo} | ${item.CustomerCode}`,
   }))}
   value={
     customerList

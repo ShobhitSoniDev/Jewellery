@@ -10,8 +10,8 @@
   background: #ffffff;
   border: 1px solid rgba(229, 231, 235, 0.85);
   border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 22px;
+  padding: 15px;
+  margin-bottom: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -188,8 +188,8 @@
 .listHeader,
 .loanItem {
   display: grid;
-  grid-template-columns: 2.5fr 2fr 1.2fr 1.2fr 1fr auto;
-  gap: 10px;
+  grid-template-columns: 3fr 2.5fr 1.5fr 1.5fr 1.2fr 1fr 120px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -410,4 +410,50 @@
     border-radius: 8px;
     margin-top: 0;
   }
+}
+
+
+.actionBtns {
+  display: flex;
+  gap: 6px;
+}
+
+.editBtn,
+.deleteBtn {
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.editBtn {
+  background: #2563eb;
+  color: #fff;
+}
+
+.deleteBtn {
+  background: #dc2626;
+  color: #fff;
+}
+
+
+.loanCreatedRow {
+  background: #fff8e1;
+  font-weight: 600;
+}
+
+.loanCreatedRow:hover {
+  background: #fff3c4;
+}
+
+.loanCreatedBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #f59e0b;
 }

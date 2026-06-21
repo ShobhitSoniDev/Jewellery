@@ -1,22 +1,26 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { LoanReport_Search,LoanOutstandingCalculate } from "@/lib/services/ReportsService";
+import { LoanReport_Search, LoanOutstandingCalculate } from "@/lib/services/ReportsService";
 import { CustomerMaster_Manage, GetLoan_Masters } from "@/lib/services/MasterService";
-import { LoanTransaction_Manage } from "@/lib/services/TransactionsService";
+import { LoanTransaction_Manage, LoanEntry_Manage } from "@/lib/services/TransactionsService";
+import LoanDetailViewModal from "@/components/CommonView/LoanDetailView";
 import Select from "react-select";
 import Swal from "sweetalert2";
 import {
-  FaCheck,
   FaChevronDown,
-  FaExchangeAlt,
   FaFileInvoice,
   FaHistory,
   FaList,
   FaSearch,
-  FaTimes,
+  FaMoneyBill,
 } from "react-icons/fa";
+
+// Transaction Type IDs (from master)
+const TXN_TYPE_MAKE_PAYMENT = 2;
+const TXN_TYPE_SETTLEMENT = 3;
+const TXN_TYPE_CLOSE_LOAN = 4;
 
 const emptyLoan = {
   LoanId: "",
@@ -45,21 +49,41 @@ export default function LoanTransaction() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [customerList, setCustomerList] = useState([]);
   const [CustomerId, setCustomerId] = useState("");
-  const loanId = getValue(selectedLoan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
-  const loanAmount = Number(getValue(selectedLoan, ["Amount", "LoanAmount"], 0)) || 0;
-
+  const [editingTransactionId, setEditingTransactionId] = useState(0);
   const [loanOutstanding, setLoanOutstanding] = useState(null);
   const [loanSummary, setLoanSummary] = useState([]);
   const [transactionHistory, setTransactionHistory] = useState([]);
-const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [loanResultsOpen, setLoanResultsOpen] = useState(true);
+  const [interestRate, setInterestRate] = useState("");
+  const [transactionMinDate, setTransactionMinDate] = useState("");
+
+  // ✅ FIX: separate state for the "View" modal so it never overwrites the
+  // actively selected loan (selectedLoan) used to drive the whole page.
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewLoanData, setViewLoanData] = useState(null);
+
   const [masterData, setMasterData] = useState({
     loanTransactionType: [],
   });
 
-  const outstandingAmount = Number(loanOutstanding?.TotalOutstandingPrincipal) || 0;
+  const loanId = getValue(selectedLoan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
+
+  const outstandingAmount = Number(loanOutstanding?.TotalNetPayable) || 0;
   const balanceAmount = Math.max(outstandingAmount - (Number(paymentAmount) || 0), 0);
-  const showBalanceRow = ["Settlement", "Close Loan"].includes(transactionType);
-  const showInterestRow = transactionType === "Make Payment";
+
+  const showInterestRow = Number(transactionType) === TXN_TYPE_MAKE_PAYMENT;
+  const showBalanceRow =
+    Number(transactionType) === TXN_TYPE_SETTLEMENT ||
+    Number(transactionType) === TXN_TYPE_CLOSE_LOAN;
+
+  // ✅ Auto-bind current interest rate (from loanOutStanding table) when "Make Payment" is selected
+  useEffect(() => {
+    if (showInterestRow && editingTransactionId === 0) {
+      setInterestRate(getValue(loanOutstanding || {}, ["InterestRate"], ""));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showInterestRow, loanOutstanding]);
 
   const loadLoans = async (searchLoanId = "") => {
     try {
@@ -98,7 +122,7 @@ const [summaryOpen, setSummaryOpen] = useState(false);
       Swal.fire("Validation", "Please enter valid Loan ID", "warning");
       return;
     }
-debugger
+
     if (!customerText && !loanText) {
       const data = await loadLoans();
       setLoans(data);
@@ -129,36 +153,31 @@ debugger
   };
 
   const selectLoan = async (loan) => {
-  const id = getValue(loan, [
-    "LoanId",
-    "loanId",
-    "LoanNo",
-    "LoanNumber",
-  ]);
-debugger
-  if (!id) {
-    setSelectedLoan(loan || emptyLoan);
-    setLoanOutstanding(null);
-    setLoanSummary([]);
-    setTransactionHistory([]);
-    return;
-  }
+    const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
 
-  const nextLoan = loan || emptyLoan;
+    if (!id) {
+      setSelectedLoan(loan || emptyLoan);
+      setTransactionHistory([]);
+      return;
+    }
 
-  setSelectedLoan(nextLoan);
-  setTransactionType("");
-  setPaymentAmount("");
-  setRemarks("");
-  setPaymentDate(toInputDate(new Date()));
-  setHistoryOpen(false);
+    const nextLoan = loan || emptyLoan;
 
-  await loadLoanOutstanding(nextLoan);
-};
+    setSelectedLoan(nextLoan);
+    setLoanResultsOpen(false);
+    setTransactionType("");
+    setPaymentAmount("");
+    setRemarks("");
+    setInterestRate("");
+    setEditingTransactionId(0);
+    setPaymentDate(toInputDate(new Date()));
+    setHistoryOpen(false);
 
-  // ✅ FIX: was calling an undefined function (LoanTransactionsDetail_Manage)
-  // Now correctly calls LoanOutstandingCalculate and binds all 3 pieces of data
-  const loadTransactionHistory = async (loan) => {
+    await loadLoanOutstanding(nextLoan);
+  };
+
+  // Single source of truth for Outstanding + Summary + History
+  const loadLoanOutstanding = async (loan) => {
     try {
       const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
 
@@ -168,16 +187,27 @@ debugger
         setTransactionHistory([]);
         return;
       }
-debugger
+
       const response = await LoanOutstandingCalculate({
         LoanId: Number(id),
+        CloserDate: new Date().toISOString().split("T")[0],
       });
 
-      const data = response?.data;
+      if (response?.code === 1 && response?.data) {
+        setLoanOutstanding(response.data.loanOutStanding || null);
+        setLoanSummary(response.data.loanSummary || []);
+        setTransactionHistory(response.data.loanTransaction || []);
 
-      setLoanOutstanding(data?.loanOutStanding || null);
-      setLoanSummary(data?.loanSummary || []);
-      setTransactionHistory(data?.loanTransaction || []);
+        setTransactionMinDate(
+          response.data.loanOutStanding?.TransactionMinDate
+            ? response.data.loanOutStanding.TransactionMinDate.split("T")[0]
+            : ""
+        );
+      } else {
+        setLoanOutstanding(null);
+        setLoanSummary([]);
+        setTransactionHistory([]);
+      }
     } catch (error) {
       console.error(error);
       setLoanOutstanding(null);
@@ -187,7 +217,6 @@ debugger
   };
 
   const handleSaveTransaction = async () => {
-    debugger
     if (!loanId) {
       Swal.fire("Validation", "Please search and select a loan first", "warning");
       return;
@@ -210,32 +239,36 @@ debugger
 
     try {
       setSaving(true);
-debugger
+
       const response = await LoanTransaction_Manage({
+        LoanTransactionId: editingTransactionId || 0,
         LoanId: Number(loanId),
         TransactionTypeId: Number(transactionType),
-        InterestRate: 5,
+        InterestRate: interestRate ? Number(interestRate) : null,
         TransactionDate: paymentDate,
         Amount: Number(paymentAmount),
         Description: remarks,
-        TypeId: "1",
+        TypeId: editingTransactionId > 0 ? "2" : "1", // 1 = Insert, 2 = Update
       });
 
       if (response?.code === 1 || response?.data?.[0]?.Code === 1) {
         Swal.fire(
-          "Saved!",
-          response?.data?.[0]?.Message || "Transaction saved successfully.",
+          "Success",
+          response?.data?.[0]?.Message ||
+            (editingTransactionId > 0
+              ? "Transaction updated successfully."
+              : "Transaction saved successfully."),
           "success"
         );
 
+        setEditingTransactionId(0);
         resetTransactionForm();
 
-        // ✅ FIX: refresh outstanding/summary/history from the same API after save
-        await loadTransactionHistory(selectedLoan);
+        await loadLoanOutstanding(selectedLoan);
       } else {
         Swal.fire(
           "Error",
-          response?.message || response?.data?.[0]?.Message || "Save failed",
+          response?.message || response?.data?.[0]?.Message || "Operation failed",
           "error"
         );
       }
@@ -252,46 +285,8 @@ debugger
     setPaymentAmount("");
     setPaymentDate(toInputDate(new Date()));
     setRemarks("");
+    setInterestRate("");
   };
-
-  const loadLoanOutstanding = async (loan) => {
-  try {
-    const loanId = getValue(loan, [
-      "LoanId",
-      "loanId",
-      "LoanNo",
-      "LoanNumber",
-    ]);
-
-    if (!loanId) {
-      setLoanOutstanding(null);
-      setLoanSummary([]);
-      setTransactionHistory([]);
-      return;
-    }
-
-    const response = await LoanOutstandingCalculate({
-      loanId: Number(loanId),
-      closerDate: "2026-12-31T00:00:00" // ya selected date
-    });
-
-    if (response?.code === 1 && response?.data) {
-      setLoanOutstanding(response.data.loanOutStanding || null);
-      setLoanSummary(response.data.loanSummary || []);
-      setTransactionHistory(response.data.loanTransaction || []);
-    } else {
-      setLoanOutstanding(null);
-      setLoanSummary([]);
-      setTransactionHistory([]);
-    }
-  } catch (error) {
-    console.error(error);
-
-    setLoanOutstanding(null);
-    setLoanSummary([]);
-    setTransactionHistory([]);
-  }
-};
 
   const clearAll = () => {
     setCustomerSearch("");
@@ -302,7 +297,38 @@ debugger
     setTransactionHistory([]);
     setLoanOutstanding(null);
     setLoanSummary([]);
+    setEditingTransactionId(0);
     resetTransactionForm();
+  };
+
+  // ✅ FIX: uses its own viewLoanData state, never touches selectedLoan.
+  // ✅ FIX: removed stray `debugger` statement.
+  const handleView = async (targetLoanId) => {
+    try {
+      const formData = new FormData();
+      formData.append("LoanId", String(targetLoanId));
+      formData.append("TypeId", "5");
+
+      const res = await LoanEntry_Manage(formData);
+
+      if (res?.data?.length > 0) {
+        setViewLoanData(res.data[0]);
+        setShowViewModal(true);
+      } else {
+        Swal.fire({
+          icon: "warning",
+          title: "Not Found",
+          text: "Loan details not available.",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Unable to load loan details",
+      });
+    }
   };
 
   const loadCustomerList = async () => {
@@ -346,6 +372,52 @@ debugger
     })();
   }, []);
 
+  const handleEditTransaction = (item) => {
+    setEditingTransactionId(item.LoanTransactionId);
+    setTransactionType(String(item.TransactionTypeId || ""));
+    setPaymentAmount(item.Amount || item.CRAmount || item.DRAmount || item.OriginalPrincipal || "");
+    setRemarks(item.Description || "");
+    setInterestRate(item.InterestRate || "");
+    setPaymentDate(
+      item.TransactionDate
+        ? item.TransactionDate.split("T")[0]
+        : item.StartDate
+        ? item.StartDate.split("T")[0]
+        : ""
+    );
+  };
+
+  const handleDeleteTransaction = async (item) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You want to delete this transaction?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await LoanTransaction_Manage({
+        LoanTransactionId: item.LoanTransactionId,
+        LoanId: Number(loanId),
+        TypeId: "3", // Delete
+      });
+
+      if (response?.code === 1) {
+        Swal.fire("Deleted!", "Transaction deleted successfully.", "success");
+        await loadLoanOutstanding(selectedLoan);
+      } else {
+        Swal.fire("Error", response?.message || "Delete failed", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "Something went wrong", "error");
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="loanTxnPage">
@@ -371,9 +443,7 @@ debugger
                     }))
                     .find((c) => c.value === CustomerId) || null
                 }
-                onChange={(selected) => {
-                  setCustomerId(selected?.value || "");
-                }}
+                onChange={(selected) => setCustomerId(selected?.value || "")}
                 placeholder="Search Customer..."
                 isClearable
               />
@@ -413,152 +483,119 @@ debugger
         </div>
 
         {searched && (
-  <div className="loanResultCard">
-    <div className="sectionTitle sectionTitleInline">
-      <span>
-        <FaList />
-        Loan Results
-      </span>
-      <small>({loans.length} found)</small>
-    </div>
-
-    <div className="listHeader">
-      <span>Loan / Customer</span>
-      <span>Loan Type / Mobile</span>
-      <span>Loan Amount</span>
-      <span>Paid Amount</span>
-      <span>Status</span>
-      <span>Action</span>
-    </div>
-
-    <div className="loanList">
-      {loans.length === 0 ? (
-        <div className="emptyState">Koi loan nahi mila.</div>
-      ) : (
-        loans.map((loan, index) => {
-          const id = getValue(
-            loan,
-            ["LoanId", "loanId", "LoanNo", "LoanNumber"],
-            index
-          );
-
-          const isSelected = String(loanId) === String(id);
-
-          const status = getValue(
-            loan,
-            ["LoanStatus", "Status"],
-            "Active"
-          );
-
-          return (
-            <div
-              key={id}
-              className={`loanItem ${isSelected ? "selected" : ""}`}
-              onClick={() => selectLoan(loan)}
-            >
-              <div className="lv">
-                {id} |{" "}
-                {getValue(
-                  loan,
-                  ["CustomerName", "customerName"],
-                  "-"
-                )}{" "}
-                |{" "}
-                {getValue(
-                  loan,
-                  ["CustomerCode", "CustomerId"],
-                  "-"
-                )}
-              </div>
-
-              <div className="lv">
-                {getValue(
-                  loan,
-                  ["LoanType", "LoanName"],
-                  "-"
-                )}{" "}
-                |{" "}
-                {getValue(
-                  loan,
-                  ["MobileNo", "Mobile"],
-                  "-"
-                )}
-              </div>
-
-              <div className="lv">
-                {formatCurrency(
-                  getValue(loan, ["TotalLoanAmt"], 0)
-                )}
-              </div>
-
-              <div className="lv">
-                {formatCurrency(
-                  getValue(loan, ["TotalAmtPaid"], 0)
-                )}
-              </div>
-
-              <div>
-                <span
-                  className={
-                    String(status)
-                      .toLowerCase()
-                      .includes("pending")
-                      ? "badgePending"
-                      : "badgeActive"
-                  }
-                >
-                  {status}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                className={`selectBtn ${
-                  isSelected ? "active" : ""
-                }`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  selectLoan(loan);
-                }}
-              >
-                {isSelected ? "Selected" : "Select"}
-              </button>
+          <div className="loanResultCard">
+            <div className="historyHeader" onClick={() => setLoanResultsOpen(!loanResultsOpen)}>
+              <span>
+                <FaList />
+                Loan Results ({loans.length} found)
+              </span>
+              <FaChevronDown className={loanResultsOpen ? "chevronIcon open" : "chevronIcon"} />
             </div>
-          );
-        })
-      )}
-    </div>
-  </div>
-)}
+
+            {loanResultsOpen && (
+              <>
+                <div className="listHeader">
+                  <span>Loan / Customer</span>
+                  <span>Loan Type / Mobile</span>
+                  <span>Loan Amount</span>
+                  <span>Paid Amount</span>
+                  <span>Start Date</span>
+                  <span>Status</span>
+                  <span>Action</span>
+                </div>
+
+                <div className="loanList">
+                  {loans.length === 0 ? (
+                    <div className="emptyState">Koi loan nahi mila.</div>
+                  ) : (
+                    loans.map((loan, index) => {
+                      const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"], index);
+                      const isSelected = String(loanId) === String(id);
+
+                      return (
+                        <div
+                          key={id}
+                          className={`loanItem ${isSelected ? "selected" : ""}`}
+                          onClick={() => selectLoan(loan)}
+                        >
+                          <div className="lv">
+                            {id} | {getValue(loan, ["CustomerName"], "-")} | {getValue(loan, ["CustomerCode"], "-")}
+                          </div>
+
+                          <div className="lv">
+                            {getValue(loan, ["LoanType"], "-")} | {getValue(loan, ["MobileNo"], "-")}
+                          </div>
+
+                          <div className="lv">{formatCurrency(getValue(loan, ["TotalLoanAmt"], 0))}</div>
+                          <div className="lv">{formatCurrency(getValue(loan, ["TotalAmtPaid"], 0))}</div>
+                          <div className="lv">{formatDisplayDate(getValue(loan, ["StartDate", "LoanStartDate"], ""))}</div>
+
+                          <div>
+                            <span
+                              className={
+                                String(getValue(loan, ["LoanStatus", "Status"], "Active"))
+                                  .toLowerCase()
+                                  .includes("pending")
+                                  ? "badgePending"
+                                  : "badgeActive"
+                              }
+                            >
+                              {getValue(loan, ["LoanStatus", "Status"], "Active")}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className={`selectBtn ${isSelected ? "active" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectLoan(loan);
+                            }}
+                          >
+                            {isSelected ? "Selected" : "Select"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {loanId && (
           <div className="loanPanel">
             <div className="selectedLoanBar">
+              <span>Loan / Customer:</span>
+              <strong>
+                {getValue(selectedLoan, ["LoanId", "loanId", "LoanNo", "LoanNumber"], "-")} |{" "}
+                {getValue(selectedLoan, ["CustomerName", "customerName"], "-")} |{" "}
+                {getValue(selectedLoan, ["CustomerCode", "CustomerId"], "-")}
+              </strong>
+
               <span>Outstanding Principal:</span>
-              <strong>{loanOutstanding?.TotalOutstandingPrincipal ?? 0}</strong>
+              <strong>{formatCurrency(loanOutstanding?.TotalOutstandingPrincipal ?? 0)}</strong>
 
               <span>Interest:</span>
-              <strong>{loanOutstanding?.TotalInterestDue ?? 0}</strong>
+              <strong>{formatCurrency(loanOutstanding?.TotalInterestDue ?? 0)}</strong>
 
               <span>Total Payable:</span>
-              <strong>{loanOutstanding?.TotalNetPayable ?? 0}</strong>
+              <strong>{formatCurrency(loanOutstanding?.TotalNetPayable ?? 0)}</strong>
             </div>
 
             <div className="sectionTitle">
-              <FaExchangeAlt />
-              New Transaction
+              <FaMoneyBill />
+              {editingTransactionId > 0 ? "Update Transaction" : "New Transaction"}
             </div>
 
             <div className="formGrid">
               <div className="fieldGroup">
                 <label>Transaction Type *</label>
-                <select
-                  value={transactionType}
-                  onChange={(event) => setTransactionType(event.target.value)}
-                >
+                <select value={String(transactionType || "")} onChange={(event) => setTransactionType(event.target.value)}>
                   <option value="">-- Select Type --</option>
                   {masterData.loanTransactionType.map((item) => (
-                    <option key={item.TransactionTypeId} value={item.TransactionTypeId}>
+                    <option key={item.TransactionTypeId} value={String(item.TransactionTypeId)}>
                       {item.TransactionTypeName}
                     </option>
                   ))}
@@ -570,6 +607,7 @@ debugger
                 <input
                   type="date"
                   value={paymentDate}
+                  min={transactionMinDate}
                   onChange={(event) => setPaymentDate(event.target.value)}
                 />
               </div>
@@ -592,7 +630,7 @@ debugger
               {showBalanceRow && (
                 <div className="fieldGroup">
                   <label>
-                    {transactionType === "Settlement" ? "Waiver Amount (Rs.)" : "Write-off Amount (Rs.)"}
+                    {Number(transactionType) === TXN_TYPE_SETTLEMENT ? "Waiver Amount (Rs.)" : "Write-off Amount (Rs.)"}
                   </label>
                   <input value={balanceAmount} disabled />
                 </div>
@@ -601,8 +639,14 @@ debugger
               {showInterestRow && (
                 <div className="fieldGroup">
                   <label>Interest Rate (% p.a.)</label>
-                  <input value={getValue(selectedLoan, ["InterestRate", "Rate"], "")} disabled />
-                  <span className="subNote">Loan ke time ki rate</span>
+                  <input
+                    type="number"
+                    value={interestRate}
+                    onChange={(event) => setInterestRate(event.target.value)}
+                  />
+                  <span className="subNote">
+                    {getValue(loanOutstanding || {}, ["InterestType"], "-")}
+                  </span>
                 </div>
               )}
 
@@ -617,83 +661,25 @@ debugger
             </div>
 
             <div className="loanActions">
-              <button className="loanPrimaryBtn" onClick={handleSaveTransaction} disabled={saving}>
-                <FaCheck />
-                {saving ? "Submitting..." : "Submit"}
+              <button type="button" className="loanPrimaryBtn" onClick={handleSaveTransaction} disabled={saving}>
+                {saving ? "Saving..." : editingTransactionId > 0 ? "Update" : "Submit"}
               </button>
-              <button className="loanSecondaryBtn" onClick={resetTransactionForm}>
-                <FaTimes />
-                Cancel
-              </button>
+
+              {editingTransactionId > 0 && (
+                <button
+                  type="button"
+                  className="loanSecondaryBtn"
+                  onClick={() => {
+                    setEditingTransactionId(0);
+                    resetTransactionForm();
+                  }}
+                >
+                  Cancel Update
+                </button>
+              )}
             </div>
 
             <hr className="loanDivider" />
-
-            {/* ✅ Loan Summary (tranche-wise interest segments) */}
-            {/* Loan Summary */}
-{loanSummary.length > 0 && (
-  <>
-    <div
-      className="historyHeader"
-      onClick={() => setSummaryOpen(!summaryOpen)}
-    >
-      <span>
-        <FaFileInvoice />
-        Loan Summary
-      </span>
-
-      <FaChevronDown
-        className={summaryOpen ? "chevronIcon open" : "chevronIcon"}
-      />
-    </div>
-
-    {summaryOpen && (
-      <div className="loanTableWrap">
-        <table className="historyTable">
-          <thead>
-            <tr>
-              <th>Tranche</th>
-              <th>Interest Type</th>
-              <th>Rate (%)</th>
-              <th>Segment Start</th>
-              <th>Segment End</th>
-              <th>Outstanding Principal</th>
-              <th>Months</th>
-              <th>Interest Amount</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loanSummary.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="emptyCell">
-                  No summary available
-                </td>
-              </tr>
-            ) : (
-              loanSummary.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.TrancheId}</td>
-                  <td>{item.InterestType}</td>
-                  <td>{item.InterestRate}%</td>
-                  <td>{formatDisplayDate(item.SegmentStartDate)}</td>
-                  <td>{formatDisplayDate(item.SegmentEndDate)}</td>
-                  <td>
-                    {formatCurrency(item.OutstandingPrincipal)}
-                  </td>
-                  <td>{item.EffectiveMonths ?? "-"}</td>
-                  <td>
-                    {formatCurrency(item.InterestAmount)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </>
-)}
 
             <div className="historyHeader" onClick={() => setHistoryOpen(!historyOpen)}>
               <span>
@@ -705,38 +691,150 @@ debugger
 
             {historyOpen && (
               <div className="loanTableWrap">
-                {/* ✅ FIX: thead/tbody columns now match (Tranche, Date, Interest Type, Rate, Original Principal, Outstanding, Total Interest) */}
                 <table className="historyTable">
                   <thead>
                     <tr>
-                      <th>Tranche</th>
-                      <th>Start Date</th>
+                      <th>Sr No</th>
+                      <th>Transaction Date</th>
                       <th>Interest Type</th>
                       <th>Rate (%)</th>
-                      <th>Original Principal</th>
-                      <th>Outstanding Principal</th>
-                      <th>Total Interest</th>
+                      <th>Transaction Type</th>
+                      <th>Amount</th>
+                      <th style={{ minWidth: "150px" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-  {transactionHistory.map((item, index) => (
-    <tr key={index}>
-      <td>{item.TrancheId}</td>
-      <td>{formatDisplayDate(item.StartDate)}</td>
-      <td>{item.InterestType}</td>
-      <td>{item.InterestRate}%</td>
-      <td>{item.OriginalPrincipal}</td>
-      <td>{item.FinalOutstandingPrincipal}</td>
-      <td>{item.TrancheTotalInterest}</td>
-    </tr>
-  ))}
-</tbody>
+                    {transactionHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="emptyCell">
+                          Koi history nahi hai.
+                        </td>
+                      </tr>
+                    ) : (
+                      transactionHistory.map((item, index) => {
+                        const isLoanCreatedRow = index === transactionHistory.length - 1;
+
+                        return (
+                          <tr key={index} className={isLoanCreatedRow ? "loanCreatedRow" : ""}>
+                            <td>{item.SrNo}</td>
+                            <td>{formatDisplayDate(item.TransactionDate)}</td>
+                            <td>{item.InterestType}</td>
+                            <td>{item.InterestRate}%</td>
+                            <td>{item.TransactionTypeName}</td>
+                            <td>{formatCurrency(item.Amount)}</td>
+                            <td>
+                              {isLoanCreatedRow ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", whiteSpace: "nowrap" }}>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // ✅ FIX: use the loan's own id, not item.LoanId
+                                      // (the transaction row may not carry a LoanId field)
+                                      handleView(loanId);
+                                    }}
+                                    style={{
+                                      padding: "6px 6px",
+                                      borderRadius: "6px",
+                                      fontSize: "13px",
+                                      fontWeight: 600,
+                                      border: "none",
+                                      cursor: "pointer",
+                                      whiteSpace: "nowrap",
+                                      flexShrink: 0,
+                                      background: "#f5a623",
+                                      color: "#fff",
+                                    }}
+                                  >
+                                    View
+                                  </button>
+                                  <span className="loanCreatedBadge">Opening</span>
+                                </div>
+                              ) : (
+                                <div className="actionBtns">
+                                  <button
+                                    type="button"
+                                    className="editBtn"
+                                    onClick={() => handleEditTransaction(item)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="deleteBtn"
+                                    onClick={() => handleDeleteTransaction(item)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
                 </table>
               </div>
+            )}
+
+            {loanSummary.length > 0 && (
+              <>
+                <div className="historyHeader" onClick={() => setSummaryOpen(!summaryOpen)}>
+                  <span>
+                    <FaFileInvoice />
+                    Loan Summary
+                  </span>
+                  <FaChevronDown className={summaryOpen ? "chevronIcon open" : "chevronIcon"} />
+                </div>
+
+                {summaryOpen && (
+                  <div className="loanTableWrap">
+                    <table className="historyTable">
+                      <thead>
+                        <tr>
+                          <th>Tranche</th>
+                          <th>Interest Type</th>
+                          <th>Rate (%)</th>
+                          <th>Segment Start</th>
+                          <th>Segment End</th>
+                          <th>Outstanding Principal</th>
+                          <th>Months</th>
+                          <th>Interest Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loanSummary.map((item, index) => (
+                          <tr key={index}>
+                            <td>{item.TrancheId}</td>
+                            <td>{item.InterestType}</td>
+                            <td>{item.InterestRate}%</td>
+                            <td>{formatDisplayDate(item.SegmentStartDate)}</td>
+                            <td>{formatDisplayDate(item.SegmentEndDate)}</td>
+                            <td>{formatCurrency(item.OutstandingPrincipal)}</td>
+                            <td>{item.EffectiveMonths ?? "-"}</td>
+                            <td>{formatCurrency(item.InterestAmount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* ✅ FIX: modal now driven by its own viewLoanData state */}
+      <LoanDetailViewModal
+        open={showViewModal}
+        data={viewLoanData}
+        onClose={() => {
+          setShowViewModal(false);
+          setViewLoanData(null);
+        }}
+      />
     </ProtectedRoute>
   );
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { LoanReport_Search } from "@/lib/services/ReportsService";
-import {
-  LoanEntry_Manage,
-  LoanTransaction_Manage,
-} from "@/lib/services/TransactionsService";
+import { LoanReport_Search,LoanOutstandingCalculate } from "@/lib/services/ReportsService";
+import { CustomerMaster_Manage, GetLoan_Masters } from "@/lib/services/MasterService";
+import { LoanTransaction_Manage } from "@/lib/services/TransactionsService";
+import Select from "react-select";
 import Swal from "sweetalert2";
 import {
   FaCheck,
@@ -18,13 +17,6 @@ import {
   FaSearch,
   FaTimes,
 } from "react-icons/fa";
-
-const transactionTypes = [
-  "Receive Payment",
-  "Make Payment",
-  "Settlement",
-  "Close Loan",
-];
 
 const emptyLoan = {
   LoanId: "",
@@ -44,7 +36,6 @@ export default function LoanTransaction() {
   const [loans, setLoans] = useState([]);
   const [searched, setSearched] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(emptyLoan);
-  const [transactionHistory, setTransactionHistory] = useState([]);
   const [transactionType, setTransactionType] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(toInputDate(new Date()));
@@ -52,30 +43,20 @@ export default function LoanTransaction() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-
+  const [customerList, setCustomerList] = useState([]);
+  const [CustomerId, setCustomerId] = useState("");
   const loanId = getValue(selectedLoan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
   const loanAmount = Number(getValue(selectedLoan, ["Amount", "LoanAmount"], 0)) || 0;
 
-  const totalReceived = useMemo(
-    () => sumByType(transactionHistory, ["Receive Payment", "Received", "Receipt"]),
-    [transactionHistory]
-  );
+  const [loanOutstanding, setLoanOutstanding] = useState(null);
+  const [loanSummary, setLoanSummary] = useState([]);
+  const [transactionHistory, setTransactionHistory] = useState([]);
+const [summaryOpen, setSummaryOpen] = useState(false);
+  const [masterData, setMasterData] = useState({
+    loanTransactionType: [],
+  });
 
-  const totalPaid = useMemo(
-    () => sumByType(transactionHistory, ["Make Payment", "Paid", "Payment"]),
-    [transactionHistory]
-  );
-
-  const outstandingAmount =
-    Number(
-      getValue(selectedLoan, [
-        "OutstandingAmount",
-        "Outstanding",
-        "BalanceAmount",
-        "PendingAmount",
-      ])
-    ) || Math.max(loanAmount - totalReceived + totalPaid, 0);
-
+  const outstandingAmount = Number(loanOutstanding?.TotalOutstandingPrincipal) || 0;
   const balanceAmount = Math.max(outstandingAmount - (Number(paymentAmount) || 0), 0);
   const showBalanceRow = ["Settlement", "Close Loan"].includes(transactionType);
   const showInterestRow = transactionType === "Make Payment";
@@ -83,10 +64,9 @@ export default function LoanTransaction() {
   const loadLoans = async (searchLoanId = "") => {
     try {
       setLoading(true);
-
       const payload = {
         LoanId: searchLoanId ? Number(searchLoanId) : null,
-        CustomerId: null,
+        CustomerId: CustomerId ? Number(CustomerId) : null,
         LoanType: null,
         LoanStatus: null,
         MetalType: null,
@@ -118,7 +98,7 @@ export default function LoanTransaction() {
       Swal.fire("Validation", "Please enter valid Loan ID", "warning");
       return;
     }
-
+debugger
     if (!customerText && !loanText) {
       const data = await loadLoans();
       setLoans(data);
@@ -149,66 +129,65 @@ export default function LoanTransaction() {
   };
 
   const selectLoan = async (loan) => {
-    const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
+  const id = getValue(loan, [
+    "LoanId",
+    "loanId",
+    "LoanNo",
+    "LoanNumber",
+  ]);
+debugger
+  if (!id) {
+    setSelectedLoan(loan || emptyLoan);
+    setLoanOutstanding(null);
+    setLoanSummary([]);
+    setTransactionHistory([]);
+    return;
+  }
 
-    if (!id) {
-      setSelectedLoan(loan || emptyLoan);
-      setTransactionHistory([]);
-      return;
-    }
+  const nextLoan = loan || emptyLoan;
 
-    const details = await loadLoanDetails(id);
-    const nextLoan = details || loan || emptyLoan;
-    setSelectedLoan(nextLoan);
-    setTransactionType("");
-    setPaymentAmount("");
-    setRemarks("");
-    setPaymentDate(toInputDate(new Date()));
-    setHistoryOpen(false);
-    await loadTransactionHistory(nextLoan);
-  };
+  setSelectedLoan(nextLoan);
+  setTransactionType("");
+  setPaymentAmount("");
+  setRemarks("");
+  setPaymentDate(toInputDate(new Date()));
+  setHistoryOpen(false);
 
-  const loadLoanDetails = async (id) => {
-    try {
-      const formData = new FormData();
-      formData.append("LoanId", id.toString());
-      formData.append("TypeId", "5");
+  await loadLoanOutstanding(nextLoan);
+};
 
-      const response = await LoanEntry_Manage(formData);
-      return response?.data?.[0] || null;
-    } catch (error) {
-      console.error(error);
-      return null;
-    }
-  };
-
+  // ✅ FIX: was calling an undefined function (LoanTransactionsDetail_Manage)
+  // Now correctly calls LoanOutstandingCalculate and binds all 3 pieces of data
   const loadTransactionHistory = async (loan) => {
     try {
-      const customerCode = getValue(loan, ["CustomerCode", "CustomerId", "customerCode"]);
+      const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
 
-      if (!customerCode) {
+      if (!id) {
+        setLoanOutstanding(null);
+        setLoanSummary([]);
         setTransactionHistory([]);
         return;
       }
+debugger
+      const response = await LoanOutstandingCalculate({
+        LoanId: Number(id),
+      });
 
-      const formData = new FormData();
-      formData.append("CustomerCode", customerCode.toString());
-      formData.append("TypeId", "4");
+      const data = response?.data;
 
-      const response = await LoanEntry_Manage(formData);
-      const data = response?.data || [];
-      const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"]);
-
-      setTransactionHistory(
-        data.filter((item) => String(getValue(item, ["LoanId", "loanId"])) === String(id))
-      );
+      setLoanOutstanding(data?.loanOutStanding || null);
+      setLoanSummary(data?.loanSummary || []);
+      setTransactionHistory(data?.loanTransaction || []);
     } catch (error) {
       console.error(error);
+      setLoanOutstanding(null);
+      setLoanSummary([]);
       setTransactionHistory([]);
     }
   };
 
   const handleSaveTransaction = async () => {
+    debugger
     if (!loanId) {
       Swal.fire("Validation", "Please search and select a loan first", "warning");
       return;
@@ -224,29 +203,35 @@ export default function LoanTransaction() {
       return;
     }
 
-    if (!paymentAmount) {
+    if (!paymentAmount || Number(paymentAmount) <= 0) {
       Swal.fire("Validation", "Transaction amount is required", "warning");
       return;
     }
 
     try {
       setSaving(true);
-
+debugger
       const response = await LoanTransaction_Manage({
         LoanId: Number(loanId),
-        TransactionType: transactionType,
-        Amount: Number(paymentAmount),
+        TransactionTypeId: Number(transactionType),
+        InterestRate: 5,
         TransactionDate: paymentDate,
-        Remarks: remarks,
-        TypeId: 1,
+        Amount: Number(paymentAmount),
+        Description: remarks,
+        TypeId: "1",
       });
 
       if (response?.code === 1 || response?.data?.[0]?.Code === 1) {
-        Swal.fire("Saved!", response?.data?.[0]?.Message || "Transaction saved", "success");
+        Swal.fire(
+          "Saved!",
+          response?.data?.[0]?.Message || "Transaction saved successfully.",
+          "success"
+        );
+
         resetTransactionForm();
-        const latestLoan = await loadLoanDetails(loanId);
-        setSelectedLoan(latestLoan || selectedLoan);
-        await loadTransactionHistory(latestLoan || selectedLoan);
+
+        // ✅ FIX: refresh outstanding/summary/history from the same API after save
+        await loadTransactionHistory(selectedLoan);
       } else {
         Swal.fire(
           "Error",
@@ -256,7 +241,7 @@ export default function LoanTransaction() {
       }
     } catch (error) {
       console.error(error);
-      Swal.fire("Error", "Something went wrong", "error");
+      Swal.fire("Error", "Something went wrong while saving transaction.", "error");
     } finally {
       setSaving(false);
     }
@@ -269,6 +254,45 @@ export default function LoanTransaction() {
     setRemarks("");
   };
 
+  const loadLoanOutstanding = async (loan) => {
+  try {
+    const loanId = getValue(loan, [
+      "LoanId",
+      "loanId",
+      "LoanNo",
+      "LoanNumber",
+    ]);
+
+    if (!loanId) {
+      setLoanOutstanding(null);
+      setLoanSummary([]);
+      setTransactionHistory([]);
+      return;
+    }
+
+    const response = await LoanOutstandingCalculate({
+      loanId: Number(loanId),
+      closerDate: "2026-12-31T00:00:00" // ya selected date
+    });
+
+    if (response?.code === 1 && response?.data) {
+      setLoanOutstanding(response.data.loanOutStanding || null);
+      setLoanSummary(response.data.loanSummary || []);
+      setTransactionHistory(response.data.loanTransaction || []);
+    } else {
+      setLoanOutstanding(null);
+      setLoanSummary([]);
+      setTransactionHistory([]);
+    }
+  } catch (error) {
+    console.error(error);
+
+    setLoanOutstanding(null);
+    setLoanSummary([]);
+    setTransactionHistory([]);
+  }
+};
+
   const clearAll = () => {
     setCustomerSearch("");
     setLoanNumber("");
@@ -276,8 +300,51 @@ export default function LoanTransaction() {
     setSearched(false);
     setSelectedLoan(emptyLoan);
     setTransactionHistory([]);
+    setLoanOutstanding(null);
+    setLoanSummary([]);
     resetTransactionForm();
   };
+
+  const loadCustomerList = async () => {
+    try {
+      const payload = {
+        CustomerCode: "",
+        customerName: "",
+        mobileNo: "",
+        email: "",
+        address: "",
+        city: "",
+        pincode: 0,
+        typeId: 4,
+      };
+      const res = await CustomerMaster_Manage(payload);
+      return res?.data || [];
+    } catch (err) {
+      console.error("Error loading customers", err);
+      return [];
+    }
+  };
+
+  const loadMasters = async () => {
+    try {
+      const response = await GetLoan_Masters();
+      if (response?.code === 1) {
+        setMasterData({
+          loanTransactionType: response.data.loanTransactionType || [],
+        });
+      }
+    } catch (error) {
+      console.error("Master API Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      const list = await loadCustomerList();
+      setCustomerList(list);
+      loadMasters();
+    })();
+  }, []);
 
   return (
     <ProtectedRoute>
@@ -288,15 +355,27 @@ export default function LoanTransaction() {
             Search Loan
           </div>
 
-          <div className="searchGrid">
-            <div className="fieldGroup">
+          <div className="form-row">
+            <div className="form-group">
               <label>Customer Search</label>
-              <input
-                value={customerSearch}
-                onChange={(event) => setCustomerSearch(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && handleSearch()}
-                placeholder="Name, Customer ID ya Mobile No."
-                autoComplete="off"
+              <Select
+                options={customerList.map((item) => ({
+                  value: item.CustomerId,
+                  label: `${item.CustomerName} | ${item.MobileNo} | ${item.CustomerCode}`,
+                }))}
+                value={
+                  customerList
+                    .map((item) => ({
+                      value: item.CustomerId,
+                      label: `${item.CustomerName} (${item.MobileNo})`,
+                    }))
+                    .find((c) => c.value === CustomerId) || null
+                }
+                onChange={(selected) => {
+                  setCustomerId(selected?.value || "");
+                }}
+                placeholder="Search Customer..."
+                isClearable
               />
               <div className="searchHint">
                 <span>Name</span>
@@ -307,7 +386,7 @@ export default function LoanTransaction() {
 
             <div className="orDivider">OR</div>
 
-            <div className="fieldGroup">
+            <div className="form-group">
               <label>Loan ID</label>
               <input
                 value={loanNumber}
@@ -334,91 +413,135 @@ export default function LoanTransaction() {
         </div>
 
         {searched && (
-          <div className="loanResultCard">
-            <div className="sectionTitle sectionTitleInline">
-              <span>
-                <FaList />
-                Loan Results
-              </span>
-              <small>({loans.length} found)</small>
+  <div className="loanResultCard">
+    <div className="sectionTitle sectionTitleInline">
+      <span>
+        <FaList />
+        Loan Results
+      </span>
+      <small>({loans.length} found)</small>
+    </div>
+
+    <div className="listHeader">
+      <span>Loan / Customer</span>
+      <span>Loan Type / Mobile</span>
+      <span>Loan Amount</span>
+      <span>Paid Amount</span>
+      <span>Status</span>
+      <span>Action</span>
+    </div>
+
+    <div className="loanList">
+      {loans.length === 0 ? (
+        <div className="emptyState">Koi loan nahi mila.</div>
+      ) : (
+        loans.map((loan, index) => {
+          const id = getValue(
+            loan,
+            ["LoanId", "loanId", "LoanNo", "LoanNumber"],
+            index
+          );
+
+          const isSelected = String(loanId) === String(id);
+
+          const status = getValue(
+            loan,
+            ["LoanStatus", "Status"],
+            "Active"
+          );
+
+          return (
+            <div
+              key={id}
+              className={`loanItem ${isSelected ? "selected" : ""}`}
+              onClick={() => selectLoan(loan)}
+            >
+              <div className="lv">
+                {id} |{" "}
+                {getValue(
+                  loan,
+                  ["CustomerName", "customerName"],
+                  "-"
+                )}{" "}
+                |{" "}
+                {getValue(
+                  loan,
+                  ["CustomerCode", "CustomerId"],
+                  "-"
+                )}
+              </div>
+
+              <div className="lv">
+                {getValue(
+                  loan,
+                  ["LoanType", "LoanName"],
+                  "-"
+                )}{" "}
+                |{" "}
+                {getValue(
+                  loan,
+                  ["MobileNo", "Mobile"],
+                  "-"
+                )}
+              </div>
+
+              <div className="lv">
+                {formatCurrency(
+                  getValue(loan, ["TotalLoanAmt"], 0)
+                )}
+              </div>
+
+              <div className="lv">
+                {formatCurrency(
+                  getValue(loan, ["TotalAmtPaid"], 0)
+                )}
+              </div>
+
+              <div>
+                <span
+                  className={
+                    String(status)
+                      .toLowerCase()
+                      .includes("pending")
+                      ? "badgePending"
+                      : "badgeActive"
+                  }
+                >
+                  {status}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className={`selectBtn ${
+                  isSelected ? "active" : ""
+                }`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  selectLoan(loan);
+                }}
+              >
+                {isSelected ? "Selected" : "Select"}
+              </button>
             </div>
-
-            <div className="listHeader">
-              <span>Loan ID / Customer</span>
-              <span>Loan Type</span>
-              <span>Outstanding</span>
-              <span>Status</span>
-              <span />
-            </div>
-
-            <div className="loanList">
-              {loans.length === 0 ? (
-                <div className="emptyState">Koi loan nahi mila.</div>
-              ) : (
-                loans.map((loan, index) => {
-                  const id = getValue(loan, ["LoanId", "loanId", "LoanNo", "LoanNumber"], index);
-                  const isSelected = String(loanId) === String(id);
-                  const status = getValue(loan, ["LoanStatus", "Status"], "Active");
-
-                  return (
-                    <div
-                      key={id}
-                      className={`loanItem ${isSelected ? "selected" : ""}`}
-                      onClick={() => selectLoan(loan)}
-                    >
-                      <div>
-                        <div className="lv">{id}</div>
-                        <div className="ll">
-                          {getValue(loan, ["CustomerName", "customerName"], "-")} | {getValue(loan, ["CustomerCode", "CustomerId"], "-")}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="lv">{getValue(loan, ["LoanType", "LoanName"], "-")}</div>
-                        <div className="ll">{getValue(loan, ["MobileNo", "Mobile"], "")}</div>
-                      </div>
-
-                      <div>
-                        <div className="lv">
-                          {formatCurrency(getValue(loan, ["OutstandingAmount", "Outstanding", "Amount"], 0))}
-                        </div>
-                        <div className="ll">Outstanding</div>
-                      </div>
-
-                      <div>
-                        <span className={String(status).toLowerCase().includes("pending") ? "badgePending" : "badgeActive"}>
-                          {status}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        className={`selectBtn ${isSelected ? "active" : ""}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          selectLoan(loan);
-                        }}
-                      >
-                        {isSelected ? "Selected" : "Select"}
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
+          );
+        })
+      )}
+    </div>
+  </div>
+)}
 
         {loanId && (
           <div className="loanPanel">
             <div className="selectedLoanBar">
-              <FaFileInvoice />
-              <strong>{loanId}</strong>
-              <span>|</span>
-              <span>{getValue(selectedLoan, ["CustomerName", "customerName"], "-")}</span>
-              <span>|</span>
-              <span>Outstanding:</span>
-              <strong>{formatCurrency(outstandingAmount)}</strong>
+              <span>Outstanding Principal:</span>
+              <strong>{loanOutstanding?.TotalOutstandingPrincipal ?? 0}</strong>
+
+              <span>Interest:</span>
+              <strong>{loanOutstanding?.TotalInterestDue ?? 0}</strong>
+
+              <span>Total Payable:</span>
+              <strong>{loanOutstanding?.TotalNetPayable ?? 0}</strong>
             </div>
 
             <div className="sectionTitle">
@@ -434,9 +557,9 @@ export default function LoanTransaction() {
                   onChange={(event) => setTransactionType(event.target.value)}
                 >
                   <option value="">-- Select Type --</option>
-                  {transactionTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
+                  {masterData.loanTransactionType.map((item) => (
+                    <option key={item.TransactionTypeId} value={item.TransactionTypeId}>
+                      {item.TransactionTypeName}
                     </option>
                   ))}
                 </select>
@@ -463,12 +586,14 @@ export default function LoanTransaction() {
 
               <div className="fieldGroup">
                 <label>Outstanding Amount (Rs.)</label>
-                <input value={outstandingAmount} disabled />
+                <input value={loanOutstanding?.TotalNetPayable || 0} disabled />
               </div>
 
               {showBalanceRow && (
                 <div className="fieldGroup">
-                  <label>{transactionType === "Settlement" ? "Waiver Amount (Rs.)" : "Write-off Amount (Rs.)"}</label>
+                  <label>
+                    {transactionType === "Settlement" ? "Waiver Amount (Rs.)" : "Write-off Amount (Rs.)"}
+                  </label>
                   <input value={balanceAmount} disabled />
                 </div>
               )}
@@ -504,6 +629,72 @@ export default function LoanTransaction() {
 
             <hr className="loanDivider" />
 
+            {/* ✅ Loan Summary (tranche-wise interest segments) */}
+            {/* Loan Summary */}
+{loanSummary.length > 0 && (
+  <>
+    <div
+      className="historyHeader"
+      onClick={() => setSummaryOpen(!summaryOpen)}
+    >
+      <span>
+        <FaFileInvoice />
+        Loan Summary
+      </span>
+
+      <FaChevronDown
+        className={summaryOpen ? "chevronIcon open" : "chevronIcon"}
+      />
+    </div>
+
+    {summaryOpen && (
+      <div className="loanTableWrap">
+        <table className="historyTable">
+          <thead>
+            <tr>
+              <th>Tranche</th>
+              <th>Interest Type</th>
+              <th>Rate (%)</th>
+              <th>Segment Start</th>
+              <th>Segment End</th>
+              <th>Outstanding Principal</th>
+              <th>Months</th>
+              <th>Interest Amount</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loanSummary.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="emptyCell">
+                  No summary available
+                </td>
+              </tr>
+            ) : (
+              loanSummary.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.TrancheId}</td>
+                  <td>{item.InterestType}</td>
+                  <td>{item.InterestRate}%</td>
+                  <td>{formatDisplayDate(item.SegmentStartDate)}</td>
+                  <td>{formatDisplayDate(item.SegmentEndDate)}</td>
+                  <td>
+                    {formatCurrency(item.OutstandingPrincipal)}
+                  </td>
+                  <td>{item.EffectiveMonths ?? "-"}</td>
+                  <td>
+                    {formatCurrency(item.InterestAmount)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </>
+)}
+
             <div className="historyHeader" onClick={() => setHistoryOpen(!historyOpen)}>
               <span>
                 <FaHistory />
@@ -514,37 +705,32 @@ export default function LoanTransaction() {
 
             {historyOpen && (
               <div className="loanTableWrap">
+                {/* ✅ FIX: thead/tbody columns now match (Tranche, Date, Interest Type, Rate, Original Principal, Outstanding, Total Interest) */}
                 <table className="historyTable">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Outstanding</th>
-                      <th>Status</th>
+                      <th>Tranche</th>
+                      <th>Start Date</th>
+                      <th>Interest Type</th>
+                      <th>Rate (%)</th>
+                      <th>Original Principal</th>
+                      <th>Outstanding Principal</th>
+                      <th>Total Interest</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {transactionHistory.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="emptyCell">
-                          Koi history nahi hai.
-                        </td>
-                      </tr>
-                    ) : (
-                      transactionHistory.map((item, index) => (
-                        <tr key={index}>
-                          <td>{formatDisplayDate(getValue(item, ["TransactionDate", "Date", "CreatedDate"]))}</td>
-                          <td>{getValue(item, ["TransactionType", "Type"], "-")}</td>
-                          <td>{formatCurrency(getValue(item, ["Amount", "TransactionAmount"], 0))}</td>
-                          <td>{formatCurrency(getValue(item, ["OutstandingAmount", "Outstanding", "BalanceAmount"], 0))}</td>
-                          <td>
-                            <span className="badgeActive">{getValue(item, ["Status", "TransactionStatus"], "Completed")}</span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+  {transactionHistory.map((item, index) => (
+    <tr key={index}>
+      <td>{item.TrancheId}</td>
+      <td>{formatDisplayDate(item.StartDate)}</td>
+      <td>{item.InterestType}</td>
+      <td>{item.InterestRate}%</td>
+      <td>{item.OriginalPrincipal}</td>
+      <td>{item.FinalOutstandingPrincipal}</td>
+      <td>{item.TrancheTotalInterest}</td>
+    </tr>
+  ))}
+</tbody>
                 </table>
               </div>
             )}
@@ -565,14 +751,6 @@ function getValue(source, keys, fallback = "") {
   }
 
   return fallback;
-}
-
-function sumByType(items, typeNames) {
-  return items.reduce((sum, item) => {
-    const type = String(getValue(item, ["TransactionType", "Type"], "")).toLowerCase();
-    const isMatch = typeNames.some((name) => type.includes(String(name).toLowerCase()));
-    return isMatch ? sum + (Number(getValue(item, ["Amount", "TransactionAmount"], 0)) || 0) : sum;
-  }, 0);
 }
 
 function toInputDate(date) {

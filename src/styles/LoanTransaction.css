@@ -188,8 +188,8 @@
 .listHeader,
 .loanItem {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.25fr 1fr auto;
-  gap: 16px;
+  grid-template-columns: 2.5fr 2fr 1.2fr 1.2fr 1fr auto;
+  gap: 10px;
   align-items: center;
 }
 
@@ -208,10 +208,11 @@
 
 .loanItem {
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 8px;
+  padding: 8px 12px;
   background: #ffffff;
   cursor: pointer;
+  min-height: 48px;
 }
 
 .loanItem:hover {
@@ -223,19 +224,17 @@
   border-color: #b7791f;
   background: #fff8e8;
 }
-
 .lv {
   color: #172033;
-  font-size: 15px;
-  font-weight: 700;
-  word-break: break-word;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ll {
-  color: #64748b;
-  font-size: 12px;
-  margin-top: 4px;
-  word-break: break-word;
+  display: none;
 }
 
 .badgeActive,
@@ -261,11 +260,9 @@
 }
 
 .selectBtn {
-  min-height: 34px;
-  background: #ffffff;
-  border-color: #b7791f;
-  color: #b7791f;
-  padding: 5px 11px;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .selectBtn.active,

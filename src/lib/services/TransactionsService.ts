@@ -75,27 +75,23 @@ export const LoanEntry_Manage = async (formData: FormData) => {
   }
 };
 
-export interface LoanTransactionManagePayload {
+export interface LoanTransaction_ManagePayload {
+  LoanTransactionId?: number;
   LoanId: number;
-  TransactionType: string;
-  TransactionTypeId?: number;
-  Amount?: number;
+  TransactionTypeId: number;
+  InterestRate?: number;
   TransactionDate: string;
-  PaymentMode?: string;
-  ReferenceNo?: string;
-  DiscountAmount?: number;
-  PaidTo?: string;
-  ClosureReason?: string;
-  CustomerConfirmed?: boolean;
-  Remarks?: string;
+  Amount: number;
+  Description?: string;
   TypeId: number;
 }
 
 export const LoanTransaction_Manage = async (
-  payload: LoanTransactionManagePayload
+  payload: LoanTransaction_ManagePayload
 ) => {
   try {
     const token = sessionStorage.getItem("token");
+debugger
     const response = await api.post(
       API_ENDPOINTS.Transactions.LoanTransaction_Manage_URL,
       payload,

@@ -21,7 +21,6 @@ export interface LogoutPayload {
   UserId: string;
 }
 export const LogoutUser = async (payload: LogoutPayload) => {
-  debugger
 
    const response = await api.post(API_ENDPOINTS.AUTH.LOGOUT, payload);
 
@@ -38,7 +37,6 @@ export interface SignUpPayload {
 }
 
 export const SignUp = async (payload: SignUpPayload) => {
-   debugger;
      try {
   const response = await api.post(API_ENDPOINTS.AUTH.SignUp_URL, payload);
   console.log("Response received:", response.data);

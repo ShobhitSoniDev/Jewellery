@@ -10,6 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 const [shopCode, setShopCode] = useState("");
+const [isShopCodeFromUrl, setIsShopCodeFromUrl] = useState(false);
 const handleLogin = async (event) => {
   event.preventDefault();
   setError("");
@@ -63,6 +64,7 @@ useEffect(() => {
 
     if (SC) {
       setShopCode(SC);
+      setIsShopCodeFromUrl(true);
     }
   }
 }, [router.isReady, router.query]);
@@ -90,9 +92,9 @@ useEffect(() => {
         </div>
 
         <form onSubmit={handleLogin} className="authForm">
-          <div
+<div
   className="authInputGroup"
-  style={{ display: shopCode ? "none" : "" }}
+  style={{ display: isShopCodeFromUrl ? "none" : "" }}
 >
   <FaGem />
   <input
@@ -100,7 +102,7 @@ useEffect(() => {
     placeholder="Shop Code"
     value={shopCode}
     onChange={(e) => setShopCode(e.target.value)}
-    disabled={!!shopCode}
+    disabled={isShopCodeFromUrl}
   />
 </div>
           <div className="authInputGroup">

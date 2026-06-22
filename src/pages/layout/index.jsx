@@ -45,6 +45,12 @@ export default function DashboardLayout({ children }) {
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const [shopName, setShopName] = useState("");
+const [tagLine, setTagLine] = useState("");
+useEffect(() => {
+  setShopName(localStorage.getItem("ShopName") || "");
+  setTagLine(localStorage.getItem("TagLine") || "");
+}, []);
 
   const loadMenuItems = async () => {
     try {
@@ -111,16 +117,34 @@ export default function DashboardLayout({ children }) {
       const payload = {
         UserId: sessionStorage.getItem("username") || "",
       };
-
+const shopCode = localStorage.getItem("shopCode");
       const response = await LogoutUser(payload);
 
       if (response?.code === 1) {
         sessionStorage.clear();
-        router.push("/login");
+       if (
+  shopCode &&
+  shopCode.trim() !== "" &&
+  shopCode !== "undefined" &&
+  shopCode !== "null"
+) {
+  router.push(`/login?SC=${encodeURIComponent(shopCode)}`);
+} else {
+  router.push("/login");
+}
       }
     } catch (error) {
       sessionStorage.clear();
-      router.push("/login");
+     if (
+  shopCode &&
+  shopCode.trim() !== "" &&
+  shopCode !== "undefined" &&
+  shopCode !== "null"
+) {
+  router.push(`/login?SC=${encodeURIComponent(shopCode)}`);
+} else {
+  router.push("/login");
+}
     }
   };
 
@@ -292,8 +316,8 @@ export default function DashboardLayout({ children }) {
               <FaGem />
             </span>
             <span>
-              <strong>Jewellery Stock</strong>
-              <small>Inventory & Girvi</small>
+              <strong>{shopName || "Jewellery Stock"}</strong>
+<small>{tagLine || "Inventory & Girvi"}</small>
             </span>
           </Link>
 

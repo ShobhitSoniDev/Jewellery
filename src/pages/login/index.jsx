@@ -1,5 +1,5 @@
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaGem, FaLock, FaUser } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { LoginUser } from "@/lib/services/AuthService";
@@ -9,35 +9,63 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+const [shopCode, setShopCode] = useState("");
+const handleLogin = async (event) => {
+  event.preventDefault();
+  setError("");
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
-    setError("");
+  if (!shopCode?.trim()) {
+    setError("Shop Code is required");
+    return;
+  }
 
-    const payload = {
-      username: email,
-      password,
-    };
+  if (!email?.trim()) {
+    setError("Username is required");
+    return;
+  }
 
-    try {
-      const response = await LoginUser(payload);
+  if (!password?.trim()) {
+    setError("Password is required");
+    return;
+  }
 
-      if (response.code === 1) {
-        sessionStorage.setItem("token", response.data.token);
-        localStorage.setItem("userName", response.data.UserName);
-        router.push("/dashboard");
-      } else {
-        setError(response.message || "Login failed");
-      }
-
-      setEmail("");
-      setPassword("");
-    } catch (error) {
-      console.error("Login Error:", error);
-      setError(error.message || "Something went wrong");
-    }
+  const payload = {
+    shopCode,
+    username: email,
+    password,
   };
 
+  try {
+    const response = await LoginUser(payload);
+
+    if (response.code === 1) {
+      sessionStorage.setItem("token", response.data.token);
+      localStorage.setItem("userName", response.data.UserName);
+      localStorage.setItem("shopCode", response.data.shopCode);
+      localStorage.setItem("ShopName", response.data.ShopName);
+      localStorage.setItem("TagLine", response.data.TagLine);
+
+      router.push("/dashboard");
+    } else {
+      setError(response.message || "Login failed");
+    }
+
+    setEmail("");
+    setPassword("");
+  } catch (error) {
+    console.error("Login Error:", error);
+    setError(error.message || "Something went wrong");
+  }
+};
+useEffect(() => {
+  if (router.isReady) {
+    const { SC } = router.query;
+
+    if (SC) {
+      setShopCode(SC);
+    }
+  }
+}, [router.isReady, router.query]);
   return (
     <div className="authPage">
       <section className="authHero" aria-label="Jewellery Stock">
@@ -62,6 +90,19 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleLogin} className="authForm">
+          <div
+  className="authInputGroup"
+  style={{ display: shopCode ? "none" : "" }}
+>
+  <FaGem />
+  <input
+    type="text"
+    placeholder="Shop Code"
+    value={shopCode}
+    onChange={(e) => setShopCode(e.target.value)}
+    disabled={!!shopCode}
+  />
+</div>
           <div className="authInputGroup">
             <FaUser />
             <input

@@ -782,8 +782,15 @@ setImagePreviews([]);
   accept="image/*"
   multiple
   onChange={handleImageChange}
+  style={{ display: "none" }}
 />
 
+<button
+  type="button"
+  onClick={() => fileInputRef.current?.click()}
+>
+  Upload Image
+</button>
   {/* Preview */}
   <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
     {imagePreviews.map((src, index) => (

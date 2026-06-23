@@ -19,11 +19,13 @@ export const API_ENDPOINTS = {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",
     LoanEntry_Manage_URL: "/transactions/LoanEntry_Save",
     LoanTransaction_Manage_URL: "/transactions/LoanTransactionsDetail_Manage",
+    CustomerLedger_Manage_URL: "/transactions/CustomerLedger_Manage",
   },
   Reports: {
     GetLoanEntryReport_URL: "/reports/GetLoanEntry",
   GetDashboardData_URL: "/reports/Dashboard_GetData",
   LoanOutstandingCalculate_URL: "/reports/LoanOutstandingCalculate",
+   CustomerLedgerReport_URL: "/reports/CustomerLedgerReport",
   }
   ,
   AI: {

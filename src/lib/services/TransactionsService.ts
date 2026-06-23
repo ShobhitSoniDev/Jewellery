@@ -119,3 +119,49 @@ debugger
     });
   }
 };
+
+export interface CustomerLedger_ManagePayload {
+  TransId?: number;           // Required for Update (TypeId=2), Delete (TypeId=3), GetById (TypeId=4)
+  CustomerCode?: string;        // Required for Insert / Update
+  TransactionDate?: string;   // Required for Insert / Update (YYYY-MM-DD)
+  TransactionType?: number;   // Required for Insert / Update (from TransactionTypeMaster)
+  Amount?: number;            // Required for Insert / Update
+  Description?: string;       // Optional (max 250 chars)
+  TypeId: number;             // 1=Insert | 2=Update | 3=Delete | 4=GetById | 5=GetAll | 6=GetTransactionTypes
+}
+
+  export const CustomerLedger_Manage = async (
+  payload: CustomerLedger_ManagePayload
+) => {
+  try {
+    // ✅ Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // ✅ Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Transactions.CustomerLedger_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // pass token
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(error);
+
+    let message = "Something went wrong";
+
+    if (error instanceof Error) {
+      message = error.message;
+    }
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: message,
+    });
+  }
+};

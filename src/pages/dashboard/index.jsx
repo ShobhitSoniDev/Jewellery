@@ -61,7 +61,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="jd-actions">
-            <button className="jd-btn jd-primary">+ Add New Item</button>
+            {/* <button className="jd-btn jd-primary">+ Add New Item</button> */}
             <button className="jd-btn" onClick={loadDashboardData}>
               Refresh
             </button>

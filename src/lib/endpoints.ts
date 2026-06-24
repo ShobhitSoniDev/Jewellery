@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
   GetDashboardData_URL: "/reports/Dashboard_GetData",
   LoanOutstandingCalculate_URL: "/reports/LoanOutstandingCalculate",
    CustomerLedgerReport_URL: "/reports/CustomerLedgerReport",
+   CustomerBillGenerate_URL: "/reports/CustomerBillGenerate",
   }
   ,
   AI: {

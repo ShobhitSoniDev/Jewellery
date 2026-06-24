@@ -159,3 +159,44 @@ export const CustomerLedger_Report = async (payload: CustomerLedgerReport_Payloa
     });
   }
 };
+
+export interface CCustomerBillGenerate_Payload {
+  CustomerCode?:    string  | null;   // NULL = All customers
+  description?:        string  | null;   
+  language?:          number  | 3;  
+}
+  export const CustomerBillGenerate = async (payload: CCustomerBillGenerate_Payload) => {
+  try {
+    // ✅ Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // ✅ Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Reports.CustomerBillGenerate_URL,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+    console.error(error);
+
+    let message = "Something went wrong";
+
+    if (error instanceof Error) {
+      message = error.message;
+    }
+
+    Swal.fire({
+      icon:  "error",
+      title: "Error",
+      text:  message,
+    });
+  }
+};

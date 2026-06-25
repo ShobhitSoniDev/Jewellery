@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { RoleMaster_Manage, RoleMenuMapping_Manage } from "@/lib/services/masterService";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // ── CSS (gold jewellery theme) ────────────────────────────────────────────────
 const styles = `
@@ -180,34 +181,35 @@ export default function RoleMenuManagement() {
   const selectRole = (role) => {
     setSelectedRole(role);
     setActiveTab("assign");
-    fetchMenusForRole(role.roleId);   // load chips
+    fetchMenusForRole(role.RoleId);   // load chips
   };
 
   // ── Tab switch ────────────────────────────────────────────────────────────
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
-    if (tab === "view" && selectedRole) fetchMappingGrid(selectedRole.roleId);
+    if (tab === "view" && selectedRole) fetchMappingGrid(selectedRole.RoleId);
   };
 
   // ── Chip toggle ───────────────────────────────────────────────────────────
   const toggleMenu = (menuId) => {
+    debugger
     setMenuList((prev) =>
-      prev.map((m) => m.menuId === menuId ? { ...m, isMapped: m.isMapped ? 0 : 1 } : m)
+      prev.map((m) => m.MenuId === menuId ? { ...m, IsMapped: m.IsMapped ? 0 : 1 } : m)
     );
   };
 
   // ── TypeId 2 (Mapping) — Save Mapping ────────────────────────────────────
   const saveMapping = async () => {
     if (!selectedRole) return;
-    const selectedIds = menuList.filter((m) => m.isMapped).map((m) => m.menuId).join(",");
+    const selectedIds = menuList.filter((m) => m.IsMapped).map((m) => m.MenuId).join(",");
     setSavingMapping(true);
     try {
       await RoleMenuMapping_Manage({
         typeId:  2,
-        roleId:  selectedRole.roleId,
+        roleId:  selectedRole.RoleId,
         menuIds: selectedIds,   // comma-separated string → STRING_SPLIT in SP
       });
-      const count = menuList.filter((m) => m.isMapped).length;
+      const count = menuList.filter((m) => m.IsMapped).length;
       showToast(`Mapping saved — ${count} menu${count !== 1 ? "s" : ""} assigned`);
       handleTabSwitch("view");
     } catch (e) {
@@ -223,13 +225,13 @@ export default function RoleMenuManagement() {
     try {
       await RoleMenuMapping_Manage({
         typeId:  4,
-        roleId:  selectedRole.roleId,
-        menuIds: String(mappingRow.menuId),
+        roleId:  selectedRole.RoleId,
+        menuIds: String(mappingRow.MenuId),
       });
       // Update grid + chip list
       setMappingGrid((prev) => prev.filter((m) => m.id !== mappingRow.id));
       setMenuList((prev) =>
-        prev.map((m) => m.menuId === mappingRow.menuId ? { ...m, isMapped: 0 } : m)
+        prev.map((m) => m.MenuId === mappingRow.MenuId ? { ...m, IsMapped: 0 } : m)
       );
       showToast("Menu removed from mapping");
     } catch (e) {
@@ -254,12 +256,13 @@ export default function RoleMenuManagement() {
   };
 
   const startEdit = (role) => {
-    setEditId(role.roleId);
+    debugger
+    setEditId(role.RoleId);
     setForm({
-      roleName:        role.roleName,
-      roleDescription: role.roleDescription || "",
-      roleCode:        role.roleCode || "",
-      isActive:        role.isActive,
+      roleName:        role.RoleName,
+      roleDescription: role.RoleDescription || "",
+      roleCode:        role.RoleCode || "",
+      isActive:        role.IsActive,
     });
     setFormErr({ roleName: "", roleCode: "" });
   };
@@ -326,7 +329,7 @@ export default function RoleMenuManagement() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <>
+    <ProtectedRoute>
       <style>{styles}</style>
 
       {/* ── Header ── */}
@@ -458,7 +461,7 @@ export default function RoleMenuManagement() {
                       }}>{r.roleCode}</span>
                     )}
                   </div>
-                    <div className="rm-role-desc">{r.roleDescription || "—"}</div>
+                    <div className="rm-role-desc">{r.RoleName || "—"}</div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:"8px",flexShrink:0}}>
                     <span className={`rm-badge ${r.isActive ? "rm-badge-active" : "rm-badge-inactive"}`}>
@@ -470,7 +473,7 @@ export default function RoleMenuManagement() {
                     >✏️</button>
                     <button
                       className="rm-btn rm-btn-danger rm-btn-sm"
-                      onClick={(e) => { e.stopPropagation(); deleteRole(r.roleId); }}
+                      onClick={(e) => { e.stopPropagation(); deleteRole(r.RoleId); }}
                     >🗑️</button>
                   </div>
                 </div>
@@ -503,11 +506,11 @@ export default function RoleMenuManagement() {
                   <div className="rm-dot" />
                   <div>
                     <span style={{fontWeight:700,fontSize:"1rem",color:"var(--gold-dk)"}}>
-                      {selectedRole.roleName}
+                      {selectedRole.RoleName}
                     </span>
                     <br />
                     <small style={{color:"var(--muted)",fontSize:".8rem"}}>
-                      {selectedRole.roleDescription || "No description"}
+                      {selectedRole.RoleDescription || "No description"}
                     </small>
                   </div>
                 </div>
@@ -535,18 +538,17 @@ export default function RoleMenuManagement() {
                       <div className="rm-menu-grid">
                         {menuList.map((m) => (
                           <label
-                            key={m.menuId}
-                            className={`rm-chip ${m.isMapped ? "selected" : ""}`}
-                            onClick={() => toggleMenu(m.menuId)}
+                            key={m.MenuId}
+                            className={`rm-chip ${m.IsMapped ? "selected" : ""}`}
+                            onClick={() => toggleMenu(m.MenuId)}
                           >
                             <input
                               type="checkbox" className="rm-chip-cb"
-                              checked={!!m.isMapped}
-                              onChange={() => toggleMenu(m.menuId)}
+                              checked={!!m.IsMapped}
+                              onChange={() => toggleMenu(m.MenuId)}
                               onClick={(e) => e.stopPropagation()}
                             />
-                            <span style={{fontSize:"1.1rem"}}>{m.icon}</span>
-                            <span className="rm-chip-name">{m.menuName}</span>
+                            <span className="rm-chip-name">{m.MenuName}</span>
                           </label>
                         ))}
                       </div>
@@ -583,17 +585,17 @@ export default function RoleMenuManagement() {
                         </thead>
                         <tbody>
                           {mappingGrid.map((m, i) => (
-                            <tr key={m.id}>
+                            <tr key={m.Id}>
                               <td style={{color:"var(--muted)",fontSize:".8rem"}}>{i + 1}</td>
                               <td>
                                 <span style={{marginRight:"6px"}}>{m.icon}</span>
-                                {m.menuName}
+                                {m.MenuName}
                               </td>
                               <td style={{color:"var(--muted)",fontFamily:"monospace",fontSize:".82rem"}}>
-                                {m.menuUrl}
+                                {m.MenuUrl}
                               </td>
                               <td style={{color:"var(--muted)",fontSize:".82rem"}}>
-                                {m.createdBy || "—"}
+                                {m.CreatedBy || "—"}
                               </td>
                               <td>
                                 <button
@@ -620,6 +622,7 @@ export default function RoleMenuManagement() {
           {toast.type === "error" ? "⚠ " : "✔ "}{toast.msg}
         </div>
       )}
-    </>
+ </ProtectedRoute>
+    
   );
 }

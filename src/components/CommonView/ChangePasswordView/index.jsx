@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { ChangePassword_Manage } from "@/lib/services/masterService";
+import { ChangePassword_Manage } from "@/lib/services/MasterService";
 
 // ── Color tokens matched from screenshot ───────────────────────────────────────
 const C = {

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { RoleMaster_Manage, RoleMenuMapping_Manage } from "@/lib/services/masterService";
+import { RoleMaster_Manage, RoleMenuMapping_Manage } from "@/lib/services/MasterService";
+
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 // ── CSS (gold jewellery theme) ────────────────────────────────────────────────

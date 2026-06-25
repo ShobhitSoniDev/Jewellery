@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import ChangePasswordModal from "@/components/CommonView/ChangePasswordView";
 import {
   FaBars,
   FaBox,
@@ -16,6 +17,7 @@ import {
   FaSignOutAlt,
   FaTimes,
   FaUserCircle,
+  FaKey,
 } from "react-icons/fa";
 import { LogoutUser } from "@/lib/services/AuthService";
 import { getMenu } from "@/lib/services/MasterService";
@@ -36,6 +38,7 @@ export default function DashboardLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [open, setOpen] = useState(false);
+  const [openchangepass, setOpenchangepass] = useState(false);
   const menuRef = useRef(null);
 
   const [searchText, setSearchText] = useState("");
@@ -409,6 +412,7 @@ const shopCode = localStorage.getItem("shopCode");
                   <FaUserCircle />
                   Profile
                 </button>
+               <button onClick={() => setOpenchangepass(true)}><FaKey />  Change Password</button>
                 <button onClick={handleLogout} className="logoutAction" type="button">
                   <FaSignOutAlt />
                   Logout
@@ -421,6 +425,10 @@ const shopCode = localStorage.getItem("shopCode");
         <main className="pageContent">{children}</main>
 
         <Chatbot />
+     <ChangePasswordModal
+  open={openchangepass}
+  onClose={() => setOpenchangepass(false)}
+/>
       </div>
     </div>
   );

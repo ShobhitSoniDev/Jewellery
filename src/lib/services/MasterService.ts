@@ -189,3 +189,148 @@ export const GetLoan_Masters = async () => {
     throw error?.response?.data;
   }
 };
+
+// =========================
+// Role Master
+// =========================
+
+export interface RoleMasterPayload {
+  roleId: number;
+  roleName: string;
+  roleDescription: string;
+  isActive: boolean;
+  typeId: number;
+  roleCode: string;
+}
+
+export const RoleMaster_Manage = async (
+  payload: RoleMasterPayload
+) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.Role_Master_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+// =========================
+// Role Menu Mapping
+// =========================
+
+export interface RoleMenuMappingPayload {
+  roleId: number;
+  menuIds: string;
+  typeId: number;
+}
+
+export const RoleMenuMapping_Manage = async (
+  payload: RoleMenuMappingPayload
+) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.RoleMenuMapping_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+
+// =========================
+// Change Password
+// =========================
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export const ChangePassword_Manage = async (
+  payload: ChangePasswordPayload
+) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.ChangePassword_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+
+// =========================
+// User Master
+// =========================
+
+export interface UserManagePayload {
+  loginId: number;
+  userName: string;
+  password: string;
+  roleId: number;
+  email: string;
+  mobileNo: string;
+  isActive: boolean;
+  typeId: number;
+}
+
+export const User_Manage = async (
+  payload: UserManagePayload
+) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.User_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};

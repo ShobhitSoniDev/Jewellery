@@ -14,6 +14,10 @@ export const API_ENDPOINTS = {
     GetAllProducts_URL: "/master/GetAllProducts",
     CustomerMaster_Manage_URL: "/master/CustomerMaster_Manage",
     GetLoan_Masters_URL: "/master/GetLoan_Masters",
+    Role_Master_Manage_URL: "/master/RoleMaster_Manage",
+    RoleMenuMapping_Manage_URL: "/master/RoleMenuMapping_Manage",
+    ChangePassword_Manage_URL: "/master/ChangePassword_Manage",
+    User_Manage_URL: "/master/User_Manage",
   },
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",

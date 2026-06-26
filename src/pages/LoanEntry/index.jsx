@@ -693,7 +693,14 @@ setImagePreviews([]);
           <div className="form-row">
             <div className="form-group">
               <label>Interest Rate</label>
-              <input value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
+              <input value={interestRate}  onChange={(e) => {
+    const value = e.target.value;
+
+    // Integer or Decimal (max 2 decimal places)
+    if (/^\d*\.?\d{0,2}$/.test(value)) {
+      setInterestRate(value);
+    }
+  }} />
            <p style={{color:"red"}}>{error.interestRate}</p>
             </div>
 
@@ -780,6 +787,7 @@ setImagePreviews([]);
   ref={fileInputRef}
   type="file"
   accept="image/*"
+  capture="environment"
   multiple
   onChange={handleImageChange}
   style={{ display: "none" }}

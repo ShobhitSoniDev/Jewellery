@@ -59,7 +59,8 @@ export const commonInputValidator = (value, options = {}) => {
     allowDecimal = true,
     maxDecimalPlaces = 2,
     minLength = 1,
-    maxLength = 50
+    maxLength = 50,
+    allowHindi = false
   } = options;
 
   // ❌ negative value not allowed
@@ -113,11 +114,16 @@ else {
   /* =========================
      ALPHANUMERIC MODE
   ==========================*/
-  // allow alphabets + numbers + space
-  const charRegex = /^[a-zA-Z0-9 ]+$/;
-  if (!charRegex.test(value)) {
-    return "Special characters are not allowed";
-  }
+  // allow alphabets + numbers + space +Hindi
+const charRegex = allowHindi
+  ? /^[a-zA-Z0-9\u0900-\u097F ]+$/
+  : /^[a-zA-Z0-9 ]+$/;
+
+if (!charRegex.test(value)) {
+  return allowHindi
+    ? "Only English, Hindi, numbers and spaces are allowed"
+    : "Special characters are not allowed";
+}
 
   // min length
   if (value.length < minLength) {

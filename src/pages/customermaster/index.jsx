@@ -250,6 +250,7 @@ debugger
                             allowDecimal: false,
                             minLength: 1,
                             maxLength: 30,
+                            allowHindi:true,
                           });
             
                           if (result === true) {
@@ -327,6 +328,7 @@ debugger
                             allowDecimal: false,
                             minLength: 1,
                             maxLength: 100,
+                            allowHindi:true,                            
                           });
             
                           if (result === true) {

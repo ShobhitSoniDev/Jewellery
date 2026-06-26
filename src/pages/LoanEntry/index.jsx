@@ -22,7 +22,13 @@ const [endDate, setEndDate] = useState("");
   const [remark, setRemark] = useState("");
  const [photos, setPhotos] = useState([]);
 const fileInputRef = useRef(null);
+const cameraInputRef = useRef(null);
+const galleryInputRef = useRef(null);
+const [showImagePopup, setShowImagePopup] = useState(false);
 const [imagePreviews, setImagePreviews] = useState([]);
+const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(
+  navigator.userAgent
+);
   const [customerList, setCustomerList] = useState([]);
   const [CustomerCode, setCustomerCode] = useState("");
   const [expectedLoanDuration, setexpectedLoanDuration] = useState("");
@@ -782,12 +788,21 @@ setImagePreviews([]);
               <div className="form-row">
                 <div className="form-group">
   <label>Jewellery Photos</label>
-
+{/* Camera */}
 <input
-  ref={fileInputRef}
+  ref={cameraInputRef}
   type="file"
   accept="image/*"
   capture="environment"
+  onChange={handleImageChange}
+  style={{ display: "none" }}
+/>
+
+{/* Gallery */}
+<input
+  ref={galleryInputRef}
+  type="file"
+  accept="image/*"
   multiple
   onChange={handleImageChange}
   style={{ display: "none" }}
@@ -795,7 +810,13 @@ setImagePreviews([]);
 
 <button
   type="button"
-  onClick={() => fileInputRef.current?.click()}
+  onClick={() => {
+    if (isMobile) {
+      setShowImagePopup(true);
+    } else {
+      galleryInputRef.current?.click();
+    }
+  }}
 >
   Upload Image
 </button>
@@ -891,7 +912,55 @@ setImagePreviews([]);
             </div>
           </div>
         )}
+{showImagePopup && (
+  <div className="custom-modal-overlay">
+    <div className="custom-modal">
 
+      <div className="modal-header">
+        <h2>Select Image</h2>
+        <button onClick={() => setShowImagePopup(false)}>✖</button>
+      </div>
+
+      <hr />
+
+      <div className="modal-body">
+
+        <div className="btn-group">
+
+          <button
+            className="btn-primary"
+            onClick={() => {
+              setShowImagePopup(false);
+              cameraInputRef.current?.click();
+            }}
+          >
+            📷 Camera
+          </button>
+
+          <button
+            className="btn-primary"
+            onClick={() => {
+              setShowImagePopup(false);
+              galleryInputRef.current?.click();
+            }}
+          >
+            🖼️ Gallery
+          </button>
+
+          <button
+            className="btn-secondary"
+            onClick={() => setShowImagePopup(false)}
+          >
+            Cancel
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+)}
 {CustomerCode && (
   <div className="form-card" style={{ marginTop: "20px" }}>
     <h3>Customer Loan History</h3>

@@ -567,3 +567,33 @@ div {
     width: 100%;
   }
 }
+
+.btn-warning-grid {
+    background-color: green;
+    color: #fff;
+    border: 1px solid green;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-warning-grid:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+.btn-warning-grid:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.4);
+}
+
+.btn-warning-grid:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

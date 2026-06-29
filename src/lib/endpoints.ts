@@ -18,12 +18,15 @@ export const API_ENDPOINTS = {
     RoleMenuMapping_Manage_URL: "/master/RoleMenuMapping_Manage",
     ChangePassword_Manage_URL: "/master/ChangePassword_Manage",
     User_Manage_URL: "/master/User_Manage",
+    SupplierMaster_Manage_URL: "/master/SupplierMaster_Manage",
   },
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",
     LoanEntry_Manage_URL: "/transactions/LoanEntry_Save",
     LoanTransaction_Manage_URL: "/transactions/LoanTransactionsDetail_Manage",
     CustomerLedger_Manage_URL: "/transactions/CustomerLedger_Manage",
+    Purchase_Manage_URL: "/transactions/Purchase_Manage",
+    Sale_Manage_URL: "/master/Sale_Manage",
   },
   Reports: {
     GetLoanEntryReport_URL: "/reports/GetLoanEntry",

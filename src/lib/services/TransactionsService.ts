@@ -165,3 +165,59 @@ export interface CustomerLedger_ManagePayload {
     });
   }
 };
+
+
+// =============================================
+// ADD THIS TO YOUR: @/lib/services/MasterService.ts
+// =============================================
+
+export type MakingChargeType = 'FLAT' | 'PERCENT';
+
+export interface PurchaseDetailItem {
+  ProductId:        number;
+  Quantity:         number;
+  GrossWeight:      number;
+  NetWeight:        number;
+  MetalRate:        number;
+  MakingCharge:     number;
+  MakingChargeType: MakingChargeType;  // ✅ Strict type
+  StoneCharge:      number;
+  Amount:           number;
+}
+
+export interface PurchasePayload {
+  TypeId: number;
+  PurchaseId?: number | null;
+  PurchaseNo?: string;
+  PurchaseDate?: string;         // "YYYY-MM-DD"
+  SupplierId?: number | null;
+  TotalAmount?: number | null;
+  PaidAmount?: number;
+  Remarks?: string;
+  CreatedBy?: string;
+  DetailsJson?: string;          // JSON.stringify(PurchaseDetailItem[])
+}
+
+export const Purchase_Manage = async (payload: PurchasePayload) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Transactions.Purchase_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+

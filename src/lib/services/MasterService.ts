@@ -74,42 +74,47 @@ export const CategoryMaster_Manage = async (payload: AddCategoryPayload) => {
 }
 };
 
+// =============================================
+// ADD THIS TO YOUR: @/lib/services/MasterService.ts
+// =============================================
 
-export interface AddProductPayload {
-  ProductId: number;
-  ProductName: string;
-  CategoryId: number,
-  MetalId?: number;
-  GrossWeight: number,
-  NetWeight: number,
-  WastageWeight: number,
-  MakingCharge: number,
-  RatePerGram: number,
-  TotalQuantity: number,
-  TypeId: number,
+export interface ProductMasterPayload {
+  TypeId: number;
+  ProductId?: number | null;
+  ProductCode?: string;
+  ProductName?: string;
+  CategoryId?: number | null;
+  MetalId?: number | null;
+  MakingCharge?: number | null;
+  MakingChargeType?: string;   // "FLAT" | "PERCENT"
+  IsActive?: boolean;
+  AuditBy?: string;
 }
 
-export const ProductMaster_Manage = async (payload: AddProductPayload) => {
+export const ProductMaster_Manage = async (payload: ProductMasterPayload) => {
   try {
-    // ✅ Get token from sessionStorage
     const token = sessionStorage.getItem("token");
-    // ✅ Call API with Authorization header
+
     const response = await api.post(
-      API_ENDPOINTS.Master.ProductMaster_Manage_URL,
+      API_ENDPOINTS.Master.ProductMaster_Manage_URL, // Add this endpoint to your API_ENDPOINTS config
       payload,
       {
         headers: {
-          Authorization: `Bearer ${token}` // pass token
-        }
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
-    
+
     return response.data;
-    } catch (error) {
-   console.log("ERROR FULL => ", error.response);
-   console.log("ERROR DATA => ", error.response?.data);
-}
+
+  } catch (error) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
 };
+
+
 export const getMenu = async () => {
   try {
     const token = sessionStorage.getItem("token");
@@ -329,6 +334,43 @@ export const User_Manage = async (
 
     return response.data;
   } catch (error: any) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+// =============================================
+// ADD THIS TO YOUR: @/lib/services/MasterService.ts
+// =============================================
+
+export interface SupplierMasterPayload {
+  SupplierId?: number | null;
+  SupplierName?: string;
+  Phone?: string;
+  GSTIN?: string;
+  Address?: string;
+  IsActive?: boolean;
+  TypeId: number;
+}
+
+export const SupplierMaster_Manage = async (payload: SupplierMasterPayload) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.SupplierMaster_Manage_URL, // Add this endpoint to your API_ENDPOINTS config
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
     console.log("ERROR FULL => ", error?.response);
     console.log("ERROR DATA => ", error?.response?.data);
     throw error;

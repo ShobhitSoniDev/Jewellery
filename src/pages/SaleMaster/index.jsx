@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { commonInputValidator } from "@/utils/inputValidation";
 import {
   ProductMaster_Manage,
-  SupplierMaster_Manage,
+  CustomerMaster_Manage,
 } from "@/lib/services/MasterService";
-import { Purchase_Manage } from "@/lib/services/TransactionsService";
+import { Sales_Manage } from "@/lib/services/TransactionsService";
 import Swal from "sweetalert2";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -19,20 +19,23 @@ const emptyRow = () => ({
   makingCharge:    "",
   makingChargeType:"FLAT",
   stoneCharge:     "",
+  gstRate:         "3",   // Default 3% Jewellery GST
   amount:          "",
 });
 
 /* ================================================================== */
-const PurchaseMaster = () => {
+const SalesMaster = () => {
 
   /* ---------------- HEADER STATES ---------------- */
   const [header, setHeader] = useState({
-    purchaseNo:   "",
-    purchaseDate: new Date().toISOString().split("T")[0],
-    supplierId:   "",
-    paidAmount:   "",
-    remarks:      "",
-    isActive:     true,   // ✅ NAYA
+    billNo:      "",
+    billDate:    new Date().toISOString().split("T")[0],
+    customerId:  "",
+    gstAmount:   "0",
+    paidAmount:  "",
+    paymentMode: "CASH",
+    remarks:     "",
+    isActive:    true,
   });
 
   const [editId,      setEditId]      = useState(null);
@@ -44,28 +47,27 @@ const PurchaseMaster = () => {
   const [detailError, setDetailError] = useState([]);
 
   /* ---------------- LIST STATE ---------------- */
-  const [purchaseList, setPurchaseList] = useState([]);
+  const [salesList, setSalesList] = useState([]);
 
   /* ---------------- DROPDOWN STATES ---------------- */
-  const [supplierList, setSupplierList] = useState([]);
+  const [customerList, setCustomerList] = useState([]);
   const [productList,  setProductList]  = useState([]);
 
-  /* ---------------- VIEW POPUP STATES ---------------- */  // ✅ NAYA
-  const [viewPopup,    setViewPopup]    = useState(false);
-  const [viewHeader,   setViewHeader]   = useState(null);
-  const [viewDetails,  setViewDetails]  = useState([]);
+  /* ---------------- VIEW POPUP STATES ---------------- */
+  const [viewPopup,   setViewPopup]   = useState(false);
+  const [viewHeader,  setViewHeader]  = useState(null);
+  const [viewDetails, setViewDetails] = useState([]);
 
   /* ============================================================
      LOAD DROPDOWNS
   ============================================================ */
-  const loadSupplierList = async () => {
+  const loadCustomerList = async () => {
     try {
-      const res = await SupplierMaster_Manage({
-        supplierId: 0, supplierName: "", phone: "",
-        gstin: "", address: "", isActive: true, typeId: 5,
+      const res = await CustomerMaster_Manage({
+        customerId: 0, customerName: "", isActive: true, typeId: 4,
       });
-      setSupplierList(res?.data || []);
-    } catch (err) { console.error("Supplier load error", err); }
+      setCustomerList(res?.data || []);
+    } catch (err) { console.error("Customer load error", err); }
   };
 
   const loadProductList = async () => {
@@ -75,27 +77,29 @@ const PurchaseMaster = () => {
     } catch (err) { console.error("Product load error", err); }
   };
 
-  const loadPurchaseList = async () => {
+  const loadSalesList = async () => {
     try {
-      const res = await Purchase_Manage({ TypeId: 4 });
-      setPurchaseList(res?.data?.header || res?.data || []);
-    } catch (err) { console.error("Purchase list load error", err); }
+      const res = await Sales_Manage({ TypeId: 4 });
+      setSalesList(res?.data?.header || res?.data || []);
+    } catch (err) { console.error("Sales list load error", err); }
   };
 
   useEffect(() => {
-    loadSupplierList();
+    loadCustomerList();
     loadProductList();
-    loadPurchaseList();
+    loadSalesList();
   }, []);
 
   /* ============================================================
      AMOUNT AUTO CALCULATE
+     Amount = (NetWeight × MetalRate) + Making + Stone + GST
   ============================================================ */
   const calculateAmount = (row) => {
     const netWeight   = parseFloat(row.netWeight)    || 0;
     const metalRate   = parseFloat(row.metalRate)    || 0;
     const making      = parseFloat(row.makingCharge) || 0;
     const stone       = parseFloat(row.stoneCharge)  || 0;
+    const gstRate     = parseFloat(row.gstRate)      || 0;
     const metalAmount = netWeight * metalRate;
 
     const makingAmount =
@@ -103,7 +107,10 @@ const PurchaseMaster = () => {
         ? metalAmount * (making / 100)
         : making;
 
-    return (metalAmount + makingAmount + stone).toFixed(2);
+    const subTotal  = metalAmount + makingAmount + stone;
+    const gstAmount = subTotal * (gstRate / 100);
+
+    return (subTotal + gstAmount).toFixed(2);
   };
 
   /* ============================================================
@@ -114,7 +121,8 @@ const PurchaseMaster = () => {
     updated[index][field] = value;
 
     const amountFields = [
-      "netWeight", "metalRate", "makingCharge", "makingChargeType", "stoneCharge"
+      "netWeight", "metalRate", "makingCharge",
+      "makingChargeType", "stoneCharge", "gstRate"
     ];
     if (amountFields.includes(field)) {
       updated[index].amount = calculateAmount(updated[index]);
@@ -122,6 +130,7 @@ const PurchaseMaster = () => {
 
     setDetails(updated);
 
+    // Auto calculate total GST amount for header
     const errCopy = [...detailError];
     if (errCopy[index]) {
       errCopy[index][field] = "";
@@ -136,9 +145,23 @@ const PurchaseMaster = () => {
     setDetailError(detailError.filter((_, i) => i !== index));
   };
 
+  /* Computed totals */
   const totalAmount = details
     .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
     .toFixed(2);
+
+  const totalGST = details.reduce((sum, r) => {
+    const netWeight   = parseFloat(r.netWeight)    || 0;
+    const metalRate   = parseFloat(r.metalRate)    || 0;
+    const making      = parseFloat(r.makingCharge) || 0;
+    const stone       = parseFloat(r.stoneCharge)  || 0;
+    const gstRate     = parseFloat(r.gstRate)      || 0;
+    const metalAmount = netWeight * metalRate;
+    const makingAmount = r.makingChargeType === "PERCENT"
+      ? metalAmount * (making / 100) : making;
+    const subTotal = metalAmount + makingAmount + stone;
+    return sum + subTotal * (gstRate / 100);
+  }, 0).toFixed(2);
 
   /* ============================================================
      VALIDATION
@@ -147,9 +170,10 @@ const PurchaseMaster = () => {
     let valid = true;
     const hErr = {};
 
-    if (!header.purchaseNo)  { hErr.purchaseNo  = "Purchase No is required"; valid = false; }
-    if (!header.purchaseDate){ hErr.purchaseDate = "Purchase Date is required"; valid = false; }
-    if (!header.supplierId)  { hErr.supplierId   = "Supplier is required"; valid = false; }
+    if (!header.billNo)      { hErr.billNo      = "Bill No is required";    valid = false; }
+    if (!header.billDate)    { hErr.billDate     = "Bill Date is required";  valid = false; }
+    if (!header.customerId)  { hErr.customerId   = "Customer is required";   valid = false; }
+    if (!header.paymentMode) { hErr.paymentMode  = "Payment Mode is required"; valid = false; }
 
     setHeaderError(hErr);
 
@@ -186,30 +210,33 @@ const PurchaseMaster = () => {
       MakingCharge:     parseFloat(r.makingCharge),
       MakingChargeType: r.makingChargeType,
       StoneCharge:      parseFloat(r.stoneCharge || 0),
+      GSTRate:          parseFloat(r.gstRate || 3),
       Amount:           parseFloat(r.amount),
     }));
 
     const payload = {
-      TypeId:       editId ? 2 : 1,
-      PurchaseId:   editId || 0,
-      PurchaseNo:   header.purchaseNo,
-      PurchaseDate: header.purchaseDate,
-      SupplierId:   Number(header.supplierId),
-      TotalAmount:  parseFloat(totalAmount),
-      PaidAmount:   parseFloat(header.paidAmount || 0),
-      IsActive:     header.isActive,          // ✅ NAYA
-      Remarks:      header.remarks,
-      CreatedBy:    createdBy,
-      DetailsJson:  detailsArray,
+      TypeId:      editId ? 2 : 1,
+      SaleId:      editId || 0,
+      BillNo:      header.billNo,
+      BillDate:    header.billDate,
+      CustomerId:  Number(header.customerId),
+      TotalAmount: parseFloat(totalAmount),
+      GSTAmount:   parseFloat(totalGST),
+      PaidAmount:  parseFloat(header.paidAmount || 0),
+      PaymentMode: header.paymentMode,
+      IsActive:    header.isActive,
+      Remarks:     header.remarks,
+      CreatedBy:   createdBy,
+      DetailsJson: detailsArray,
     };
 
     try {
-      const response = await Purchase_Manage(payload);
+      const response = await Sales_Manage(payload);
       const res0 = response?.data?.[0];
 
       if (res0?.Status === 1) {
         await Swal.fire({ icon: "success", title: "Saved!", text: res0.Message });
-        loadPurchaseList();
+        loadSalesList();
         resetForm();
       } else {
         Swal.fire({ icon: "error", title: "Error", text: res0?.Message || "Save failed" });
@@ -225,12 +252,14 @@ const PurchaseMaster = () => {
   ============================================================ */
   const resetForm = () => {
     setHeader({
-      purchaseNo:   "",
-      purchaseDate: new Date().toISOString().split("T")[0],
-      supplierId:   "",
-      paidAmount:   "",
-      remarks:      "",
-      isActive:     true,   // ✅ NAYA
+      billNo:      "",
+      billDate:    new Date().toISOString().split("T")[0],
+      customerId:  "",
+      gstAmount:   "0",
+      paidAmount:  "",
+      paymentMode: "CASH",
+      remarks:     "",
+      isActive:    true,
     });
     setDetails([emptyRow()]);
     setEditId(null);
@@ -242,9 +271,9 @@ const PurchaseMaster = () => {
   /* ============================================================
      EDIT
   ============================================================ */
-  const handleEdit = async (purchaseId) => {
+  const handleEdit = async (saleId) => {
     try {
-      const res = await Purchase_Manage({ TypeId: 4, PurchaseId: purchaseId });
+      const res = await Sales_Manage({ TypeId: 4, SaleId: saleId });
 
       const hData = res?.data?.header?.[0];
       const dData = res?.data?.details || [];
@@ -252,14 +281,16 @@ const PurchaseMaster = () => {
       if (!hData) return;
 
       setHeader({
-        purchaseNo:   hData.PurchaseNo || "",
-        purchaseDate: hData.PurchaseDate
-          ? hData.PurchaseDate.split("T")[0]
+        billNo:      hData.BillNo || "",
+        billDate:    hData.BillDate
+          ? hData.BillDate.split("T")[0]
           : new Date().toISOString().split("T")[0],
-        supplierId: hData.SupplierId ? hData.SupplierId.toString() : "",
-        paidAmount: hData.PaidAmount ? hData.PaidAmount.toString() : "",
-        remarks:    hData.Remarks || "",
-        isActive:   hData.IsActive ?? true,   // ✅ NAYA
+        customerId:  hData.CustomerId ? hData.CustomerId.toString() : "",
+        gstAmount:   hData.GSTAmount  ? hData.GSTAmount.toString()  : "0",
+        paidAmount:  hData.PaidAmount ? hData.PaidAmount.toString()  : "",
+        paymentMode: hData.PaymentMode || "CASH",
+        remarks:     hData.Remarks || "",
+        isActive:    hData.IsActive ?? true,
       });
 
       setDetails(
@@ -274,28 +305,29 @@ const PurchaseMaster = () => {
               makingCharge:    d.MakingCharge     ? d.MakingCharge.toString()     : "",
               makingChargeType:d.MakingChargeType || "FLAT",
               stoneCharge:     d.StoneCharge      ? d.StoneCharge.toString()      : "",
+              gstRate:         d.GSTRate          ? d.GSTRate.toString()          : "3",
               amount:          d.Amount           ? d.Amount.toString()           : "",
             }))
           : [emptyRow()]
       );
 
-      setEditId(purchaseId);
+      setEditId(saleId);
       setButtonName("Update");
       window.scrollTo({ top: 0, behavior: "smooth" });
 
     } catch (err) {
       console.error("Edit load error", err);
-      Swal.fire({ icon: "error", title: "Error", text: "Could not load purchase" });
+      Swal.fire({ icon: "error", title: "Error", text: "Could not load sale" });
     }
   };
 
   /* ============================================================
-     DELETE  ✅ Are you sure added
+     DELETE
   ============================================================ */
-  const handleDelete = async (purchaseId) => {
+  const handleDelete = async (saleId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
-      text:  "Ye purchase permanently delete ho jayega!",
+      text:  "Ye sale permanently delete ho jayega!",
       icon:  "warning",
       showCancelButton:  true,
       confirmButtonColor:"#dc2626",
@@ -307,8 +339,8 @@ const PurchaseMaster = () => {
 
     try {
       const createdBy = sessionStorage.getItem("username") || "Admin";
-      const res = await Purchase_Manage({
-        TypeId: 3, PurchaseId: purchaseId, CreatedBy: createdBy,
+      const res = await Sales_Manage({
+        TypeId: 3, SaleId: saleId, CreatedBy: createdBy,
       });
       const res0 = res?.data?.[0];
 
@@ -317,7 +349,7 @@ const PurchaseMaster = () => {
           icon: "success", title: "Deleted!",
           timer: 1200, showConfirmButton: false,
         });
-        loadPurchaseList();
+        loadSalesList();
       } else {
         Swal.fire({ icon: "error", title: "Error", text: res0?.Message || "Delete failed" });
       }
@@ -328,7 +360,7 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     ACTIVATE / DEACTIVATE  ✅ NAYA — TypeId = 5
+     ACTIVATE / DEACTIVATE — TypeId = 5
   ============================================================ */
   const handleToggleActive = async (item) => {
     const isCurrentlyActive = item.IsActive;
@@ -336,10 +368,10 @@ const PurchaseMaster = () => {
     const result = await Swal.fire({
       title: isCurrentlyActive ? "Deactivate Karna Hai?" : "Activate Karna Hai?",
       text:  isCurrentlyActive
-        ? `Purchase No ${item.PurchaseNo} deactivate ho jayega.`
-        : `Purchase No ${item.PurchaseNo} activate ho jayega.`,
+        ? `Bill No ${item.BillNo} deactivate ho jayega.`
+        : `Bill No ${item.BillNo} activate ho jayega.`,
       icon:  "warning",
-      showCancelButton:  true,
+      showCancelButton:   true,
       confirmButtonColor: isCurrentlyActive ? "#f59e0b" : "#16a34a",
       cancelButtonColor:  "#6b7280",
       confirmButtonText:  isCurrentlyActive ? "Haan, Deactivate Karo!" : "Haan, Activate Karo!",
@@ -349,11 +381,11 @@ const PurchaseMaster = () => {
 
     try {
       const createdBy = sessionStorage.getItem("username") || "Admin";
-      const res = await Purchase_Manage({
-        TypeId:     5,
-        PurchaseId: item.PurchaseId,
-        IsActive:   !isCurrentlyActive,   // Toggle
-        CreatedBy:  createdBy,
+      const res = await Sales_Manage({
+        TypeId:   5,
+        SaleId:   item.SaleId,
+        IsActive: !isCurrentlyActive,
+        CreatedBy: createdBy,
       });
       const res0 = res?.data?.[0];
 
@@ -365,7 +397,7 @@ const PurchaseMaster = () => {
           timer: 1200,
           showConfirmButton: false,
         });
-        loadPurchaseList();
+        loadSalesList();
       } else {
         Swal.fire({ icon: "error", title: "Error", text: res0?.Message || "Failed" });
       }
@@ -376,17 +408,13 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     VIEW POPUP  ✅ NAYA — TypeId = 4 with PurchaseId
+     VIEW POPUP — TypeId = 4 with SaleId
   ============================================================ */
-  const handleView = async (purchaseId) => {
+  const handleView = async (saleId) => {
     try {
-      const res = await Purchase_Manage({ TypeId: 4, PurchaseId: purchaseId });
-
-      const hData = res?.data?.header?.[0];
-      const dData = res?.data?.details || [];
-
-      setViewHeader(hData);
-      setViewDetails(dData);
+      const res = await Sales_Manage({ TypeId: 4, SaleId: saleId });
+      setViewHeader(res?.data?.header?.[0]);
+      setViewDetails(res?.data?.details || []);
       setViewPopup(true);
     } catch (err) {
       console.error("View load error", err);
@@ -403,16 +431,16 @@ const PurchaseMaster = () => {
 
         {/* ===================== HEADER FORM ===================== */}
         <div className="form-card">
-          <h2>Purchase Entry</h2>
+          <h2>Sales Entry</h2>
           <hr />
 
-          {/* Row 1: Purchase No | Purchase Date */}
+          {/* Row 1: Bill No | Bill Date */}
           <div className="form-row">
             <div className="form-group">
-              <label>Purchase No</label>
+              <label>Bill No</label>
               <input
-                placeholder="Purchase No"
-                value={header.purchaseNo}
+                placeholder="Bill No"
+                value={header.billNo}
                 onChange={(e) => {
                   const val = e.target.value;
                   const result = commonInputValidator(val, {
@@ -420,51 +448,72 @@ const PurchaseMaster = () => {
                     minLength: 1, maxLength: 20,
                   });
                   if (result === true) {
-                    setHeader({ ...header, purchaseNo: val.toUpperCase() });
-                    setHeaderError((p) => ({ ...p, purchaseNo: "" }));
+                    setHeader({ ...header, billNo: val.toUpperCase() });
+                    setHeaderError((p) => ({ ...p, billNo: "" }));
                   } else {
-                    setHeaderError((p) => ({ ...p, purchaseNo: result }));
+                    setHeaderError((p) => ({ ...p, billNo: result }));
                   }
                 }}
               />
-              <p style={{ color: "red" }}>{headerError.purchaseNo}</p>
+              <p style={{ color: "red" }}>{headerError.billNo}</p>
             </div>
 
             <div className="form-group">
-              <label>Purchase Date</label>
+              <label>Bill Date</label>
               <input
                 type="date"
-                value={header.purchaseDate}
+                value={header.billDate}
                 onChange={(e) => {
-                  setHeader({ ...header, purchaseDate: e.target.value });
-                  setHeaderError((p) => ({ ...p, purchaseDate: "" }));
+                  setHeader({ ...header, billDate: e.target.value });
+                  setHeaderError((p) => ({ ...p, billDate: "" }));
                 }}
               />
-              <p style={{ color: "red" }}>{headerError.purchaseDate}</p>
+              <p style={{ color: "red" }}>{headerError.billDate}</p>
             </div>
           </div>
 
-          {/* Row 2: Supplier | Paid Amount */}
+          {/* Row 2: Customer | Payment Mode */}
           <div className="form-row">
             <div className="form-group">
-              <label>Supplier</label>
+              <label>Customer</label>
               <select
-                value={header.supplierId}
+                value={header.customerId}
                 onChange={(e) => {
-                  setHeader({ ...header, supplierId: e.target.value });
-                  setHeaderError((p) => ({ ...p, supplierId: "" }));
+                  setHeader({ ...header, customerId: e.target.value });
+                  setHeaderError((p) => ({ ...p, customerId: "" }));
                 }}
               >
-                <option value="">-- Select Supplier --</option>
-                {supplierList.map((s) => (
-                  <option key={s.SupplierId} value={s.SupplierId}>
-                    {s.SupplierName}
+                <option value="">-- Select Customer --</option>
+                {customerList.map((c) => (
+                  <option key={c.CustomerId} value={c.CustomerId}>
+                    {c.CustomerName} — {c.MobileNo}
                   </option>
                 ))}
               </select>
-              <p style={{ color: "red" }}>{headerError.supplierId}</p>
+              <p style={{ color: "red" }}>{headerError.customerId}</p>
             </div>
 
+            <div className="form-group">
+              <label>Payment Mode</label>
+              <select
+                value={header.paymentMode}
+                onChange={(e) => {
+                  setHeader({ ...header, paymentMode: e.target.value });
+                  setHeaderError((p) => ({ ...p, paymentMode: "" }));
+                }}
+              >
+                <option value="CASH">Cash</option>
+                <option value="CARD">Card</option>
+                <option value="UPI">UPI</option>
+                <option value="CHEQUE">Cheque</option>
+                <option value="MIXED">Mixed</option>
+              </select>
+              <p style={{ color: "red" }}>{headerError.paymentMode}</p>
+            </div>
+          </div>
+
+          {/* Row 3: Paid Amount | IsActive */}
+          <div className="form-row">
             <div className="form-group">
               <label>Paid Amount (₹)</label>
               <input
@@ -481,10 +530,7 @@ const PurchaseMaster = () => {
                 }}
               />
             </div>
-          </div>
 
-          {/* Row 3: IsActive | Remarks */}   {/* ✅ NAYA ROW */}
-          <div className="form-row">
             <div className="form-group">
               <label>Is Active</label>
               <select
@@ -497,8 +543,11 @@ const PurchaseMaster = () => {
                 <option value="false">Inactive</option>
               </select>
             </div>
+          </div>
 
-            <div className="form-group">
+          {/* Row 4: Remarks */}
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
               <label>Remarks</label>
               <input
                 placeholder="Remarks (optional)"
@@ -506,13 +555,14 @@ const PurchaseMaster = () => {
                 onChange={(e) => setHeader({ ...header, remarks: e.target.value })}
               />
             </div>
+            <div className="form-group"></div>
           </div>
         </div>
 
         {/* ===================== DETAIL TABLE ===================== */}
         <div className="form-card" style={{ marginTop: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ margin: 0 }}>Purchase Details</h3>
+            <h3 style={{ margin: 0 }}>Sale Details</h3>
             <button className="btn-primary" onClick={addRow}>+ Add Row</button>
           </div>
           <hr />
@@ -529,7 +579,8 @@ const PurchaseMaster = () => {
                   <th style={th}>Metal Rate (₹)</th>
                   <th style={th}>Making Charge</th>
                   <th style={th}>Type</th>
-                  <th style={th}>Stone Charge (₹)</th>
+                  <th style={th}>Stone (₹)</th>
+                  <th style={th}>GST %</th>
                   <th style={th}>Amount (₹)</th>
                   <th style={th}>Action</th>
                 </tr>
@@ -539,6 +590,7 @@ const PurchaseMaster = () => {
                   <tr key={row._id}>
                     <td style={td}>{index + 1}</td>
 
+                    {/* Product */}
                     <td style={td}>
                       <select
                         style={inputStyle}
@@ -557,6 +609,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.productId}</p>
                     </td>
 
+                    {/* Quantity */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Qty" value={row.quantity}
@@ -571,6 +624,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.quantity}</p>
                     </td>
 
+                    {/* Gross Weight */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Gross Wt" value={row.grossWeight}
@@ -585,6 +639,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.grossWeight}</p>
                     </td>
 
+                    {/* Net Weight */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Net Wt" value={row.netWeight}
@@ -599,6 +654,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.netWeight}</p>
                     </td>
 
+                    {/* Metal Rate */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Metal Rate" value={row.metalRate}
@@ -613,6 +669,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.metalRate}</p>
                     </td>
 
+                    {/* Making Charge */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Making" value={row.makingCharge}
@@ -627,6 +684,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.makingCharge}</p>
                     </td>
 
+                    {/* Making Charge Type */}
                     <td style={td}>
                       <select
                         style={inputStyle}
@@ -640,6 +698,7 @@ const PurchaseMaster = () => {
                       </select>
                     </td>
 
+                    {/* Stone Charge */}
                     <td style={td}>
                       <input
                         style={inputStyle} placeholder="Stone" value={row.stoneCharge}
@@ -653,6 +712,21 @@ const PurchaseMaster = () => {
                       />
                     </td>
 
+                    {/* GST Rate */}
+                    <td style={td}>
+                      <input
+                        style={inputStyle} placeholder="GST %" value={row.gstRate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const result = commonInputValidator(val, {
+                            numeric: true, allowDecimal: true, minLength: 1, maxLength: 5,
+                          });
+                          if (result === true) handleDetailChange(index, "gstRate", val);
+                        }}
+                      />
+                    </td>
+
+                    {/* Amount (read-only) */}
                     <td style={td}>
                       <input
                         style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
@@ -661,6 +735,7 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.amount}</p>
                     </td>
 
+                    {/* Remove Row */}
                     <td style={{ ...td, textAlign: "center" }}>
                       <button
                         className="btn-danger-grid"
@@ -674,21 +749,39 @@ const PurchaseMaster = () => {
                 ))}
               </tbody>
 
+              {/* TOTALS */}
               <tfoot>
                 <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Total Amount:</td>
-                  <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>₹ {totalAmount}</td>
+                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    GST Amount:
+                  </td>
+                  <td style={{ ...td, fontWeight: "bold", color: "#7c3aed" }}>
+                    ₹ {totalGST}
+                  </td>
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Paid Amount:</td>
+                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Total Amount:
+                  </td>
+                  <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>
+                    ₹ {totalAmount}
+                  </td>
+                  <td style={td}></td>
+                </tr>
+                <tr>
+                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Paid Amount:
+                  </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
                     ₹ {parseFloat(header.paidAmount || 0).toFixed(2)}
                   </td>
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Balance Due:</td>
+                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Balance Due:
+                  </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#dc2626" }}>
                     ₹ {(parseFloat(totalAmount) - parseFloat(header.paidAmount || 0)).toFixed(2)}
                   </td>
@@ -704,46 +797,49 @@ const PurchaseMaster = () => {
           </div>
         </div>
 
-        {/* ===================== PURCHASE LIST ===================== */}
+        {/* ===================== SALES LIST ===================== */}
         <div className="table-card" style={{ marginTop: "16px" }}>
-          <h3>Purchase List</h3>
+          <h3>Sales List</h3>
           <table>
             <thead>
               <tr>
                 <th>Sr No</th>
-                <th>Purchase No</th>
+                <th>Bill No</th>
                 <th>Date</th>
-                <th>Supplier</th>
+                <th>Customer</th>
+                <th>Mobile</th>
                 <th>Total Amount</th>
+                <th>GST</th>
                 <th>Paid Amount</th>
                 <th>Balance Due</th>
-                <th>Status</th>      {/* ✅ NAYA */}
-                <th>Remarks</th>
+                <th>Payment Mode</th>
+                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {purchaseList.map((item, index) => (
-                <tr key={item.PurchaseId}>
+              {salesList.map((item, index) => (
+                <tr key={item.SaleId}>
                   <td>{index + 1}</td>
-                  <td>{item.PurchaseNo}</td>
+                  <td>{item.BillNo}</td>
                   <td>
-                    {item.PurchaseDate
-                      ? new Date(item.PurchaseDate).toLocaleDateString("en-IN")
+                    {item.BillDate
+                      ? new Date(item.BillDate).toLocaleDateString("en-IN")
                       : ""}
                   </td>
-                  <td>{item.SupplierName}</td>
+                  <td>{item.CustomerName}</td>
+                  <td>{item.MobileNo}</td>
                   <td>₹ {item.TotalAmount}</td>
+                  <td>₹ {item.GSTAmount}</td>
                   <td>₹ {item.PaidAmount}</td>
-                  <td>₹ {item.DueAmount}</td>
+                  <td>₹ {item.BalanceDue}</td>
+                  <td>{item.PaymentMode}</td>
 
-                  {/* Status Badge */}   {/* ✅ NAYA */}
+                  {/* Status Badge */}
                   <td>
                     <span style={{
-                      padding: "2px 10px",
-                      borderRadius: "12px",
-                      fontSize: "12px",
-                      fontWeight: "bold",
+                      padding: "2px 10px", borderRadius: "12px",
+                      fontSize: "12px", fontWeight: "bold",
                       backgroundColor: item.IsActive ? "#dcfce7" : "#fee2e2",
                       color: item.IsActive ? "#16a34a" : "#dc2626",
                     }}>
@@ -751,46 +847,43 @@ const PurchaseMaster = () => {
                     </span>
                   </td>
 
-                  <td>{item.Remarks}</td>
                   <td>
-                    {/* View Button */}   {/* ✅ NAYA */}
+                    {/* View */}
                     <button
                       className="btn-primary"
                       style={{ marginRight: "6px", padding: "4px 10px", fontSize: "12px" }}
-                      onClick={() => handleView(item.PurchaseId)}
+                      onClick={() => handleView(item.SaleId)}
                     >
                       View
                     </button>
 
+                    {/* Edit */}
                     <button
                       className="btn-edit-grid"
                       style={{ marginRight: "6px" }}
-                      onClick={() => handleEdit(item.PurchaseId)}
+                      onClick={() => handleEdit(item.SaleId)}
                     >
                       Edit
                     </button>
 
-                    {/* Active/Deactive Button */}   {/* ✅ NAYA */}
+                    {/* Activate / Deactivate */}
                     <button
                       style={{
-                        marginRight: "6px",
-                        padding: "4px 10px",
-                        fontSize: "12px",
-                        borderRadius: "4px",
-                        border: "none",
-                        cursor: "pointer",
+                        marginRight: "6px", padding: "4px 10px",
+                        fontSize: "12px", borderRadius: "4px",
+                        border: "none", cursor: "pointer",
                         backgroundColor: item.IsActive ? "#f59e0b" : "#16a34a",
-                        color: "#fff",
-                        fontWeight: "bold",
+                        color: "#fff", fontWeight: "bold",
                       }}
                       onClick={() => handleToggleActive(item)}
                     >
                       {item.IsActive ? "Deactivate" : "Activate"}
                     </button>
 
+                    {/* Delete */}
                     <button
                       className="btn-danger-grid"
-                      onClick={() => handleDelete(item.PurchaseId)}
+                      onClick={() => handleDelete(item.SaleId)}
                     >
                       Delete
                     </button>
@@ -801,14 +894,13 @@ const PurchaseMaster = () => {
           </table>
         </div>
 
-        {/* ===================== VIEW POPUP ===================== */}   {/* ✅ NAYA */}
+        {/* ===================== VIEW POPUP ===================== */}
         {viewPopup && viewHeader && (
           <div style={overlayStyle}>
             <div style={popupStyle}>
 
-              {/* Popup Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ margin: 0 }}>Purchase Details — {viewHeader.PurchaseNo}</h3>
+                <h3 style={{ margin: 0 }}>Sale Details — {viewHeader.BillNo}</h3>
                 <button
                   onClick={() => setViewPopup(false)}
                   style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6b7280" }}
@@ -820,16 +912,20 @@ const PurchaseMaster = () => {
 
               {/* Header Info */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-                <div><strong>Purchase No:</strong> {viewHeader.PurchaseNo}</div>
-                <div><strong>Date:</strong> {viewHeader.PurchaseDate ? new Date(viewHeader.PurchaseDate).toLocaleDateString("en-IN") : ""}</div>
-                <div><strong>Supplier:</strong> {viewHeader.SupplierName}</div>
+                <div><strong>Bill No:</strong> {viewHeader.BillNo}</div>
+                <div><strong>Date:</strong> {viewHeader.BillDate ? new Date(viewHeader.BillDate).toLocaleDateString("en-IN") : ""}</div>
+                <div><strong>Customer:</strong> {viewHeader.CustomerName}</div>
+                <div><strong>Mobile:</strong> {viewHeader.MobileNo}</div>
+                <div><strong>Payment Mode:</strong> {viewHeader.PaymentMode}</div>
                 <div><strong>Total Amount:</strong> ₹ {viewHeader.TotalAmount}</div>
+                <div><strong>GST Amount:</strong> ₹ {viewHeader.GSTAmount}</div>
                 <div><strong>Paid Amount:</strong> ₹ {viewHeader.PaidAmount}</div>
-                <div><strong>Balance Due:</strong> ₹ {viewHeader.DueAmount}</div>
+                <div><strong>Balance Due:</strong> ₹ {viewHeader.BalanceDue}</div>
                 <div>
                   <strong>Status: </strong>
                   <span style={{
-                    padding: "2px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold",
+                    padding: "2px 10px", borderRadius: "12px",
+                    fontSize: "12px", fontWeight: "bold",
                     backgroundColor: viewHeader.IsActive ? "#dcfce7" : "#fee2e2",
                     color: viewHeader.IsActive ? "#16a34a" : "#dc2626",
                   }}>
@@ -855,12 +951,13 @@ const PurchaseMaster = () => {
                       <th style={th}>Making</th>
                       <th style={th}>Type</th>
                       <th style={th}>Stone</th>
+                      <th style={th}>GST %</th>
                       <th style={th}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {viewDetails.map((d, i) => (
-                      <tr key={d.PurchaseDetailId}>
+                      <tr key={d.SaleDetailId}>
                         <td style={td}>{i + 1}</td>
                         <td style={td}>{d.ProductName}</td>
                         <td style={td}>{d.Quantity}</td>
@@ -870,6 +967,7 @@ const PurchaseMaster = () => {
                         <td style={td}>{d.MakingCharge}</td>
                         <td style={td}>{d.MakingChargeType}</td>
                         <td style={td}>₹ {d.StoneCharge}</td>
+                        <td style={td}>{d.GSTRate}%</td>
                         <td style={td}>₹ {d.Amount}</td>
                       </tr>
                     ))}
@@ -877,7 +975,6 @@ const PurchaseMaster = () => {
                 </table>
               </div>
 
-              {/* Close Button */}
               <div style={{ textAlign: "right", marginTop: "16px" }}>
                 <button className="btn-secondary" onClick={() => setViewPopup(false)}>
                   Close
@@ -904,29 +1001,20 @@ const inputStyle = {
   width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1",
   borderRadius: "4px", fontSize: "14px", boxSizing: "border-box",
 };
-const errStyle  = { color: "red", fontSize: "11px", margin: "2px 0 0 0" };
+const errStyle = { color: "red", fontSize: "11px", margin: "2px 0 0 0" };
 
-/* ✅ NAYA — Popup Styles */
 const overlayStyle = {
-  position:        "fixed",
-  top:             0, left: 0,
-  width:           "100vw",
-  height:          "100vh",
+  position: "fixed", top: 0, left: 0,
+  width: "100vw", height: "100vh",
   backgroundColor: "rgba(0,0,0,0.5)",
-  display:         "flex",
-  alignItems:      "center",
-  justifyContent:  "center",
-  zIndex:          1000,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  zIndex: 1000,
 };
 const popupStyle = {
-  backgroundColor: "#fff",
-  borderRadius:    "8px",
-  padding:         "24px",
-  width:           "90%",
-  maxWidth:        "900px",
-  maxHeight:       "85vh",
-  overflowY:       "auto",
-  boxShadow:       "0 20px 60px rgba(0,0,0,0.3)",
+  backgroundColor: "#fff", borderRadius: "8px",
+  padding: "24px", width: "90%", maxWidth: "1000px",
+  maxHeight: "85vh", overflowY: "auto",
+  boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
 };
 
-export default PurchaseMaster;
+export default SalesMaster;

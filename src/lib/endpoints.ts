@@ -26,7 +26,7 @@ export const API_ENDPOINTS = {
     LoanTransaction_Manage_URL: "/transactions/LoanTransactionsDetail_Manage",
     CustomerLedger_Manage_URL: "/transactions/CustomerLedger_Manage",
     Purchase_Manage_URL: "/transactions/Purchase_Manage",
-    Sale_Manage_URL: "/master/Sale_Manage",
+    Sale_Manage_URL: "/transactions/Sales_Manage",
   },
   Reports: {
     GetLoanEntryReport_URL: "/reports/GetLoanEntry",

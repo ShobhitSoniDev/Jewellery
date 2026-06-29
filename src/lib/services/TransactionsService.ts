@@ -194,6 +194,7 @@ export interface PurchasePayload {
   TotalAmount?: number | null;
   PaidAmount?: number;
   Remarks?: string;
+  IsActive?: boolean;
   CreatedBy?: string;
   DetailsJson?: string;          // JSON.stringify(PurchaseDetailItem[])
 }
@@ -221,3 +222,53 @@ export const Purchase_Manage = async (payload: PurchasePayload) => {
   }
 };
 
+
+export interface SalesDetailItem {
+  ProductId:        number;
+  Quantity:         number;
+  GrossWeight:      number;
+  NetWeight:        number;
+  MetalRate:        number;
+  MakingCharge:     number;
+  MakingChargeType: MakingChargeType;  // ✅ Strict type
+  StoneCharge:      number;
+  Amount:           number;
+  GSTRate:          number;
+}
+
+export interface SalesPayload {
+  TypeId: number;
+  PurchaseId?: number | null;
+  PurchaseNo?: string;
+  PurchaseDate?: string;         // "YYYY-MM-DD"
+  SupplierId?: number | null;
+  TotalAmount?: number | null;
+  PaidAmount?: number;
+  Remarks?: string;
+  IsActive?: boolean;
+  CreatedBy?: string;
+  DetailsJson?: string;          // JSON.stringify(SalesDetailItem[])
+}
+
+export const Sales_Manage = async (payload: SalesPayload) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Transactions.Sale_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};

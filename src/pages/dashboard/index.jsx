@@ -16,6 +16,17 @@ const emptyDashboard = {
 
 const getValue = (obj, smallKey, capitalKey) => obj?.[smallKey] ?? obj?.[capitalKey] ?? "";
 
+/* Small icon per summary-card tone, purely visual — matches the `Tone`
+   column returned by Jewellery.Dashboard_GetData (Result Set 1) */
+const TONE_ICON = {
+  gold:   "💰",
+  blue:   "📦",
+  green:  "✅",
+  orange: "⚠️",
+  red:    "🔻",
+  purple: "🏷️",
+};
+
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState(emptyDashboard);
   const [loading, setLoading] = useState(false);
@@ -24,19 +35,31 @@ export default function DashboardPage() {
     loadDashboardData();
   }, []);
 
+  /* Dashboard_GetData SP returns 6 ordered result sets:
+     1) Summary Cards   2) Metal Wise Stock   3) Low Stock Items
+     4) Recent Transactions   5) Girvi/Loan Summary   6) Stock Overview
+     ReportsService should map these (by position or by name) into the
+     keys below — this page accepts either camelCase or PascalCase keys
+     so it works whether the API wraps recordsets as named properties or
+     forwards SQL Server's recordset array directly. */
   const loadDashboardData = async () => {
     try {
       setLoading(true);
 
       const res = await Dashboard_GetData();
+      const data = res?.data;
+
+      // Supports either { summaryCards: [...], ... } shape (object)
+      // or a raw array-of-recordsets shape [ [...], [...], ... ] (fallback).
+      const isArrayShape = Array.isArray(data);
 
       setDashboardData({
-        summaryCards: res?.data.summaryCards || res?.data.SummaryCards || [],
-        metalSummary: res?.data.metalSummary || res?.data.MetalSummary || [],
-        lowStockItems: res?.data.lowStockItems || res?.data.LowStockItems || [],
-        recentTransactions: res?.data.recentTransactions || res?.data.RecentTransactions || [],
-        girviSummary: res?.data.girviSummary || res?.data.GirviSummary || [],
-        stockOverview: res?.data.stockOverview || res?.data.StockOverview || [],
+        summaryCards: (isArrayShape ? data?.[0] : data?.summaryCards || data?.SummaryCards) || [],
+        metalSummary: (isArrayShape ? data?.[1] : data?.metalSummary || data?.MetalSummary) || [],
+        lowStockItems: (isArrayShape ? data?.[2] : data?.lowStockItems || data?.LowStockItems) || [],
+        recentTransactions: (isArrayShape ? data?.[3] : data?.recentTransactions || data?.RecentTransactions) || [],
+        girviSummary: (isArrayShape ? data?.[4] : data?.girviSummary || data?.GirviSummary) || [],
+        stockOverview: (isArrayShape ? data?.[5] : data?.stockOverview || data?.StockOverview) || [],
       });
     } catch (error) {
       console.error(error);
@@ -51,6 +74,10 @@ export default function DashboardPage() {
     }
   };
 
+  const hasOldGirviReview = dashboardData.summaryCards.some(
+    (item) => getValue(item, "title", "Title") === "Old Girvi Review" && Number(getValue(item, "value", "Value")) > 0
+  );
+
   return (
     <ProtectedRoute>
       <div className="jd-page">
@@ -61,78 +88,99 @@ export default function DashboardPage() {
           </div>
 
           <div className="jd-actions">
-            {/* <button className="jd-btn jd-primary">+ Add New Item</button> */}
-            <button className="jd-btn" onClick={loadDashboardData}>
-              Refresh
+            <button className="jd-btn" onClick={loadDashboardData} disabled={loading}>
+              {loading ? "Refreshing..." : "⟳ Refresh"}
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="jd-panel jd-loading">Loading dashboard...</div>
+          <div className="jd-panel jd-loading">
+            <span className="jd-spinner" />
+            Loading dashboard...
+          </div>
         ) : (
           <>
+            {/* ===================== SUMMARY CARDS ===================== */}
             <div className="jd-stats">
-              {dashboardData.summaryCards.map((item, index) => {
-                const title = getValue(item, "title", "Title");
-                const value = getValue(item, "value", "Value");
-                const tone = getValue(item, "tone", "Tone");
+              {dashboardData.summaryCards.length > 0 ? (
+                dashboardData.summaryCards.map((item, index) => {
+                  const title = getValue(item, "title", "Title");
+                  const value = getValue(item, "value", "Value");
+                  const tone = getValue(item, "tone", "Tone") || "blue";
 
-                return (
-                  <div className={`jd-stat ${tone}`} key={`${title}-${index}`}>
-                    <span>{title}</span>
-                    <h3>{value}</h3>
-                  </div>
-                );
-              })}
+                  return (
+                    <div className={`jd-stat ${tone}`} key={`${title}-${index}`}>
+                      <span className="jd-stat-icon" aria-hidden="true">{TONE_ICON[tone] || "📊"}</span>
+                      <span>{title}</span>
+                      <h3>{value}</h3>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="jd-panel jd-empty">No summary data found</div>
+              )}
             </div>
 
             <div className="jd-grid">
+              {/* ===================== METAL WISE STOCK ===================== */}
               <div className="jd-panel">
                 <div className="jd-panel-head">
                   <h3>Metal Wise Stock</h3>
                 </div>
 
                 <div className="jd-list">
-                  {dashboardData.metalSummary.map((item, index) => (
-                    <div className="jd-row" key={index}>
-                      <div>
-                        <strong>{getValue(item, "metal", "Metal")}</strong>
-                        <small>
-                          {getValue(item, "items", "Items")} items • {getValue(item, "weight", "Weight")}
-                        </small>
+                  {dashboardData.metalSummary.length > 0 ? (
+                    dashboardData.metalSummary.map((item, index) => (
+                      <div className="jd-row" key={index}>
+                        <div>
+                          <strong>{getValue(item, "metal", "Metal")}</strong>
+                          <small>
+                            {getValue(item, "items", "Items")} items • {getValue(item, "weight", "Weight")}
+                          </small>
+                        </div>
+                        <b>{getValue(item, "value", "Value")}</b>
                       </div>
-                      <b>{getValue(item, "value", "Value")}</b>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="jd-empty">No stock data found</div>
+                  )}
                 </div>
               </div>
 
+              {/* ===================== GIRVI / LOAN SUMMARY ===================== */}
               <div className="jd-panel">
                 <div className="jd-panel-head">
                   <h3>Girvi / Loan Summary</h3>
                 </div>
 
                 <div className="jd-mini-grid">
-                  {dashboardData.girviSummary.map((item, index) => (
-                    <div className="jd-mini" key={index}>
-                      <span>{getValue(item, "title", "Title")}</span>
-                      <b>{getValue(item, "value", "Value")}</b>
-                    </div>
-                  ))}
+                  {dashboardData.girviSummary.length > 0 ? (
+                    dashboardData.girviSummary.map((item, index) => (
+                      <div className="jd-mini" key={index}>
+                        <span>{getValue(item, "title", "Title")}</span>
+                        <b>{getValue(item, "value", "Value")}</b>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="jd-empty">No loan data found</div>
+                  )}
                 </div>
 
-                <div className="jd-old-loan">
-                  <div>
-                    <strong>Old Girvi Review</strong>
-                    <p>8-10 saal se inactive loans ko settlement, write-off ya dormant review me process karein.</p>
+                {hasOldGirviReview && (
+                  <div className="jd-old-loan">
+                    <div>
+                      <strong>Old Girvi Review</strong>
+                      <p>8-10 saal se inactive loans ko settlement, write-off ya dormant review me process karein.</p>
+                    </div>
+                    <button className="jd-btn jd-danger">Review</button>
                   </div>
-                  <button className="jd-btn jd-danger">Review</button>
-                </div>
+                )}
               </div>
             </div>
 
             <div className="jd-grid">
+              {/* ===================== LOW STOCK ALERTS ===================== */}
               <div className="jd-panel">
                 <div className="jd-panel-head">
                   <h3>Low Stock Alerts</h3>
@@ -179,26 +227,32 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* ===================== RECENT TRANSACTIONS ===================== */}
               <div className="jd-panel">
                 <div className="jd-panel-head">
                   <h3>Recent Transactions</h3>
                 </div>
 
                 <div className="jd-list">
-                  {dashboardData.recentTransactions.map((item, index) => (
-                    <div className="jd-row" key={index}>
-                      <div>
-                        <span className="jd-type">{getValue(item, "type", "Type")}</span>
-                        <strong>{getValue(item, "detail", "Detail")}</strong>
-                        <small>{getValue(item, "date", "Date")}</small>
+                  {dashboardData.recentTransactions.length > 0 ? (
+                    dashboardData.recentTransactions.map((item, index) => (
+                      <div className="jd-row" key={index}>
+                        <div>
+                          <span className="jd-type">{getValue(item, "type", "Type")}</span>
+                          <strong>{getValue(item, "detail", "Detail")}</strong>
+                          <small>{getValue(item, "date", "Date")}</small>
+                        </div>
+                        <b>{getValue(item, "amount", "Amount")}</b>
                       </div>
-                      <b>{getValue(item, "amount", "Amount")}</b>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="jd-empty">No recent transactions found</div>
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* ===================== STOCK OVERVIEW ===================== */}
             <div className="jd-panel">
               <div className="jd-panel-head">
                 <h3>Stock Overview</h3>
@@ -218,24 +272,34 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dashboardData.stockOverview.map((item, index) => {
-                      const status = getValue(item, "status", "Status");
+                    {dashboardData.stockOverview.length > 0 ? (
+                      dashboardData.stockOverview.map((item, index) => {
+                        const status = getValue(item, "status", "Status");
 
-                      return (
-                        <tr key={index}>
-                          <td>{getValue(item, "item", "Item")}</td>
-                          <td>{getValue(item, "category", "Category")}</td>
-                          <td>{getValue(item, "qty", "Qty")}</td>
-                          <td>{getValue(item, "weight", "Weight")}</td>
-                          <td>{getValue(item, "value", "Value")}</td>
-                          <td>
-                            <span className={`jd-badge ${status === "Low" ? "red" : status === "Sale" ? "orange" : "green"}`}>
-                              {status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        return (
+                          <tr key={index}>
+                            <td>{getValue(item, "item", "Item")}</td>
+                            <td>{getValue(item, "category", "Category")}</td>
+                            <td>{getValue(item, "qty", "Qty")}</td>
+                            <td>{getValue(item, "weight", "Weight")}</td>
+                            <td>{getValue(item, "value", "Value")}</td>
+                            <td>
+                              <span
+                                className={`jd-badge ${
+                                  status === "Low" ? "orange" : status === "Sold" ? "red" : "green"
+                                }`}
+                              >
+                                {status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="jd-empty">No stock items found</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -259,6 +323,7 @@ export default function DashboardPage() {
           justify-content: space-between;
           gap: 16px;
           margin-bottom: 20px;
+          flex-wrap: wrap;
         }
 
         .jd-header h2 {
@@ -292,6 +357,11 @@ export default function DashboardPage() {
           white-space: nowrap;
         }
 
+        .jd-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
         .jd-primary {
           background: #d99a2b;
           color: #ffffff;
@@ -302,23 +372,35 @@ export default function DashboardPage() {
           color: #ffffff;
         }
 
+        /* Auto-fit so cards reflow naturally on any screen width,
+           media queries below just tighten things further on small screens */
         .jd-stats {
           display: grid;
-          grid-template-columns: repeat(4, minmax(160px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 16px;
           margin-bottom: 20px;
         }
 
         .jd-stat {
+          position: relative;
           background: #ffffff;
           border-radius: 10px;
           padding: 18px;
+          padding-right: 44px;
           min-height: 108px;
           border-left: 5px solid #64748b;
           box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
         }
 
-        .jd-stat span {
+        .jd-stat-icon {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          font-size: 18px;
+          opacity: 0.85;
+        }
+
+        .jd-stat span:not(.jd-stat-icon) {
           color: #6b7280;
           font-size: 14px;
           font-weight: 700;
@@ -326,8 +408,9 @@ export default function DashboardPage() {
 
         .jd-stat h3 {
           margin: 12px 0 0;
-          font-size: 25px;
-          line-height: 1.1;
+          font-size: 22px;
+          line-height: 1.2;
+          word-break: break-word;
         }
 
         .jd-stat.gold { border-color: #d99a2b; }
@@ -353,11 +436,27 @@ export default function DashboardPage() {
         }
 
         .jd-loading {
-          min-height: 120px;
+          min-height: 160px;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
+          gap: 12px;
           font-weight: 700;
+          color: #6b7280;
+        }
+
+        .jd-spinner {
+          width: 28px;
+          height: 28px;
+          border: 3px solid #e5e7eb;
+          border-top-color: #d99a2b;
+          border-radius: 50%;
+          animation: jd-spin 0.8s linear infinite;
+        }
+
+        @keyframes jd-spin {
+          to { transform: rotate(360deg); }
         }
 
         .jd-panel-head {
@@ -366,6 +465,7 @@ export default function DashboardPage() {
           justify-content: space-between;
           gap: 10px;
           margin-bottom: 14px;
+          flex-wrap: wrap;
         }
 
         .jd-panel-head h3 {
@@ -393,6 +493,7 @@ export default function DashboardPage() {
         .jd-row strong {
           display: block;
           margin-bottom: 4px;
+          word-break: break-word;
         }
 
         .jd-row small {
@@ -407,7 +508,7 @@ export default function DashboardPage() {
 
         .jd-mini-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
           gap: 12px;
           margin-bottom: 14px;
         }
@@ -428,6 +529,7 @@ export default function DashboardPage() {
 
         .jd-mini b {
           font-size: 20px;
+          word-break: break-word;
         }
 
         .jd-old-loan {
@@ -474,11 +576,12 @@ export default function DashboardPage() {
         .jd-table-wrap {
           width: 100%;
           overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
 
         .jd-table {
           width: 100%;
-          min-width: 720px;
+          min-width: 620px;
           border-collapse: collapse;
         }
 
@@ -514,13 +617,10 @@ export default function DashboardPage() {
         .jd-empty {
           text-align: center !important;
           color: #6b7280;
+          padding: 20px;
         }
 
         @media (max-width: 1100px) {
-          .jd-stats {
-            grid-template-columns: repeat(2, minmax(160px, 1fr));
-          }
-
           .jd-grid {
             grid-template-columns: 1fr;
           }
@@ -543,8 +643,32 @@ export default function DashboardPage() {
             width: 100%;
           }
 
-          .jd-stats,
+          .jd-stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+
+          .jd-stat {
+            padding: 14px;
+            padding-right: 36px;
+            min-height: 92px;
+          }
+
+          .jd-stat h3 {
+            font-size: 18px;
+          }
+
           .jd-mini-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .jd-panel {
+            padding: 14px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .jd-stats {
             grid-template-columns: 1fr;
           }
         }

@@ -222,32 +222,64 @@ export const Purchase_Manage = async (payload: PurchasePayload) => {
   }
 };
 
-
+export type MakingChargeType = "FLAT" | "PERCENT";
+ 
+export type CustomerType = "FULKAR" | "HOLESALE";
+ 
+export type PaymentMode = "CASH" | "CARD" | "UPI" | "CHEQUE" | "MIXED";
+ 
+/* ------------------------------------------------------------------ */
+/* New Jewellery (Sale Details) row                                    */
+/* ------------------------------------------------------------------ */
 export interface SalesDetailItem {
   ProductId:        number;
   Quantity:         number;
   GrossWeight:      number;
   NetWeight:        number;
+  Touch:            number | null;   // Optional — Wholesale required, Retail optional
+  PureWeight:       number | null;   // Auto-calc = NetWeight * Touch / 100 (only when Touch present)
   MetalRate:        number;
   MakingCharge:     number;
   MakingChargeType: MakingChargeType;  // ✅ Strict type
   StoneCharge:      number;
-  Amount:           number;
   GSTRate:          number;
+  Amount:           number;
 }
-
+ 
+/* ------------------------------------------------------------------ */
+/* Old Jewellery Exchange row                                          */
+/* ------------------------------------------------------------------ */
+export interface OldJewelleryItem {
+  EntryType:        CustomerType;     // header ke CustomerType se aata hai
+  ItemDescription:  string | null;
+  GrossWeight:      number;
+  Touch:            number | null;
+  DeductionWeight:  number | null;    // Auto-calc = GrossWeight * (100 - Touch) / 100
+  PureWeight:       number | null;    // Auto-calc = GrossWeight - DeductionWeight
+  MetalRate:        number;
+  Amount:           number;
+}
+ 
+/* ------------------------------------------------------------------ */
+/* Sales Payload — sent to Sales_Manage service                        */
+/* TypeId: 1 = Insert, 2 = Update, 3 = Delete, 4 = Get/List, 5 = Toggle */
+/* ------------------------------------------------------------------ */
 export interface SalesPayload {
-  TypeId: number;
-  PurchaseId?: number | null;
-  PurchaseNo?: string;
-  PurchaseDate?: string;         // "YYYY-MM-DD"
-  SupplierId?: number | null;
-  TotalAmount?: number | null;
-  PaidAmount?: number;
-  Remarks?: string;
-  IsActive?: boolean;
-  CreatedBy?: string;
-  DetailsJson?: string;          // JSON.stringify(SalesDetailItem[])
+  TypeId:           number;
+  SaleId?:          number | null;
+  BillNo?:          string;
+  BillDate?:        string;             // "YYYY-MM-DD"
+  CustomerId?:      number | null;
+  CustomerType?:    CustomerType;
+  TotalAmount?:     number | null;
+  GSTAmount?:       number | null;
+  PaidAmount?:      number;
+  PaymentMode?:     PaymentMode;
+  Remarks?:         string;
+  IsActive?:        boolean;
+  CreatedBy?:       string;
+  DetailsJson?:     SalesDetailItem[];      // backend expects array (or JSON.stringify(SalesDetailItem[]) if API wants a string)
+  OldJewelleryJson?: OldJewelleryItem[] | null;
 }
 
 export const Sales_Manage = async (payload: SalesPayload) => {

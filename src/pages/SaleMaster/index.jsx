@@ -15,12 +15,26 @@ const emptyRow = () => ({
   quantity:        "",
   grossWeight:     "",
   netWeight:       "",
+  touch:           "",   // HOLESALE only (CustomerType driven, header level)
+  pureWeight:      "",   // HOLESALE only (auto-calc = netWeight * touch/100)
   metalRate:       "",
   makingCharge:    "",
   makingChargeType:"FLAT",
   stoneCharge:     "",
-  gstRate:         "3",   // Default 3% Jewellery GST
+  gstRate:         "0",   // Default 3% Jewellery GST
   amount:          "",
+});
+
+/* Old Jewellery empty row — ab EntryType header ke CustomerType se aayega */
+const emptyOldJewelRow = () => ({
+  _id:             Date.now() + Math.random(),
+  itemDescription: "",
+  grossWeight:     "",
+  touch:           "",     // HOLESALE only
+  deductionWeight: "",     // HOLESALE only (auto-calc from touch)
+  pureWeight:      "",     // HOLESALE only (auto-calc)
+  metalRate:       "",
+  amount:          "",     // auto-calc
 });
 
 /* ================================================================== */
@@ -31,6 +45,7 @@ const SalesMaster = () => {
     billNo:      "",
     billDate:    new Date().toISOString().split("T")[0],
     customerId:  "",
+    customerType:"FULKAR",   // FULKAR / HOLESALE — poori sale (new + old jewellery) ispe depend karegi
     gstAmount:   "0",
     paidAmount:  "",
     paymentMode: "CASH",
@@ -46,6 +61,10 @@ const SalesMaster = () => {
   const [details,     setDetails]     = useState([emptyRow()]);
   const [detailError, setDetailError] = useState([]);
 
+  /* ---------------- OLD JEWELLERY ROWS STATES ---------------- */
+  const [oldJewelleryRows,  setOldJewelleryRows]  = useState([]);
+  const [oldJewelleryError, setOldJewelleryError] = useState([]);
+
   /* ---------------- LIST STATE ---------------- */
   const [salesList, setSalesList] = useState([]);
 
@@ -54,9 +73,17 @@ const SalesMaster = () => {
   const [productList,  setProductList]  = useState([]);
 
   /* ---------------- VIEW POPUP STATES ---------------- */
-  const [viewPopup,   setViewPopup]   = useState(false);
-  const [viewHeader,  setViewHeader]  = useState(null);
-  const [viewDetails, setViewDetails] = useState([]);
+  const [viewPopup,        setViewPopup]        = useState(false);
+  const [viewHeader,       setViewHeader]       = useState(null);
+  const [viewDetails,      setViewDetails]      = useState([]);
+  const [viewOldJewellery, setViewOldJewellery]  = useState([]);
+
+  /* ---------------- PRINT PREVIEW STATES ---------------- */
+  const [printPopup,  setPrintPopup]  = useState(false);
+  const [printData,   setPrintData]   = useState(null); // { header, details, oldJewellery }
+  const [printLoading,setPrintLoading]= useState(false);
+
+  const isHolesale = header.customerType === "HOLESALE";
 
   /* ============================================================
      LOAD DROPDOWNS
@@ -91,16 +118,24 @@ const SalesMaster = () => {
   }, []);
 
   /* ============================================================
-     AMOUNT AUTO CALCULATE
-     Amount = (NetWeight × MetalRate) + Making + Stone + GST
+     AMOUNT AUTO CALCULATE — SALE DETAILS
+     FULKAR    : Amount = (NetWeight × MetalRate) + Making + Stone + GST
+     HOLESALE  : PureWeight = NetWeight × Touch/100
+                 Amount      = (PureWeight × MetalRate) + Making + Stone + GST
   ============================================================ */
   const calculateAmount = (row) => {
     const netWeight   = parseFloat(row.netWeight)    || 0;
+    const pureWeight  = parseFloat(row.pureWeight)   || 0;
     const metalRate   = parseFloat(row.metalRate)    || 0;
     const making      = parseFloat(row.makingCharge) || 0;
     const stone       = parseFloat(row.stoneCharge)  || 0;
     const gstRate     = parseFloat(row.gstRate)      || 0;
-    const metalAmount = netWeight * metalRate;
+
+    // Touch optional hai (FULKAR par bhi bhara ja sakta hai) — agar Touch bhara hai
+    // to PureWeight use hoga, warna NetWeight se hi amount nikalega.
+    const baseWeight = row.touch ? pureWeight : netWeight;
+
+    const metalAmount = baseWeight * metalRate;
 
     const makingAmount =
       row.makingChargeType === "PERCENT"
@@ -113,24 +148,85 @@ const SalesMaster = () => {
     return (subTotal + gstAmount).toFixed(2);
   };
 
+  /* Recalculate a single sale-detail row (pureWeight + amount). Touch is optional
+     for both FULKAR and HOLESALE — jab bhi Touch bhara ho, PureWeight nikal ke
+     usi se Amount calculate hoga. */
+  const recalcDetailRow = (row) => {
+    const netWeight = parseFloat(row.netWeight) || 0;
+    const touch     = parseFloat(row.touch)      || 0;
+    const updated = {
+      ...row,
+      pureWeight: row.touch && netWeight ? (netWeight * (touch / 100)).toFixed(3) : "",
+    };
+    updated.amount = calculateAmount(updated);
+    return updated;
+  };
+
   /* ============================================================
-     DETAIL ROW HANDLERS
+     OLD JEWELLERY CALCULATIONS
+     FULKAR    : Amount = GrossWeight × MetalRate
+     HOLESALE  : DeductionWeight = GrossWeight × (100 - Touch) / 100
+                 PureWeight      = GrossWeight - DeductionWeight
+                 Amount          = PureWeight × MetalRate
+  ============================================================ */
+  const calculateOldJewelRow = (row) => {
+    const grossWeight = parseFloat(row.grossWeight) || 0;
+    const metalRate   = parseFloat(row.metalRate)   || 0;
+
+    // Touch optional hai (FULKAR par bhi bhara ja sakta hai) — bhara ho to
+    // Deduction/PureWeight se Amount, warna seedha GrossWeight × MetalRate
+    if (row.touch) {
+      const touch = parseFloat(row.touch) || 0;
+      const deductionWeight = grossWeight * (100 - touch) / 100;
+      const pureWeight      = grossWeight - deductionWeight;
+      const amount          = pureWeight * metalRate;
+
+      return {
+        ...row,
+        deductionWeight: grossWeight && touch ? deductionWeight.toFixed(3) : "",
+        pureWeight:       grossWeight && touch ? pureWeight.toFixed(3)      : "",
+        amount:           grossWeight && touch ? amount.toFixed(2)          : "",
+      };
+    }
+
+    const amount = grossWeight * metalRate;
+    return {
+      ...row,
+      deductionWeight: "",
+      pureWeight:      "",
+      amount: grossWeight && metalRate ? amount.toFixed(2) : "",
+    };
+  };
+
+  /* ============================================================
+     HEADER — CUSTOMER TYPE CHANGE
+     Poori sale (naya jewellery + old jewellery) CustomerType par depend karti hai,
+     isliye type badalte hi sabhi rows recalc ho jate hain.
+  ============================================================ */
+  const handleCustomerTypeChange = (value) => {
+    setHeader((prev) => ({ ...prev, customerType: value }));
+    // Touch ab dono CustomerType par optional/available hai, isliye details rows
+    // ko reset karne ki zaroorat nahi — sirf old jewellery rows ka calc refresh hoga
+    setOldJewelleryRows((prev) =>
+      prev.map((row) => calculateOldJewelRow(row))
+    );
+  };
+
+  /* ============================================================
+     DETAIL ROW HANDLERS — SALE DETAILS
   ============================================================ */
   const handleDetailChange = (index, field, value) => {
     const updated = [...details];
     updated[index][field] = value;
 
-    const amountFields = [
-      "netWeight", "metalRate", "makingCharge",
-      "makingChargeType", "stoneCharge", "gstRate"
-    ];
+    const amountFields = ["netWeight", "touch", "metalRate", "makingCharge", "makingChargeType", "stoneCharge", "gstRate"];
+
     if (amountFields.includes(field)) {
-      updated[index].amount = calculateAmount(updated[index]);
+      updated[index] = recalcDetailRow(updated[index]);
     }
 
     setDetails(updated);
 
-    // Auto calculate total GST amount for header
     const errCopy = [...detailError];
     if (errCopy[index]) {
       errCopy[index][field] = "";
@@ -145,6 +241,35 @@ const SalesMaster = () => {
     setDetailError(detailError.filter((_, i) => i !== index));
   };
 
+  /* ============================================================
+     OLD JEWELLERY ROW HANDLERS
+  ============================================================ */
+  const handleOldJewelChange = (index, field, value) => {
+    const updated = [...oldJewelleryRows];
+    updated[index][field] = value;
+
+    const recalcFields = ["grossWeight", "touch", "metalRate"];
+    if (recalcFields.includes(field)) {
+      updated[index] = calculateOldJewelRow(updated[index]);
+    }
+
+    setOldJewelleryRows(updated);
+
+    const errCopy = [...oldJewelleryError];
+    if (errCopy[index]) {
+      errCopy[index][field] = "";
+      setOldJewelleryError(errCopy);
+    }
+  };
+
+  const addOldJewelRow = () =>
+    setOldJewelleryRows([...oldJewelleryRows, emptyOldJewelRow()]);
+
+  const removeOldJewelRow = (index) => {
+    setOldJewelleryRows(oldJewelleryRows.filter((_, i) => i !== index));
+    setOldJewelleryError(oldJewelleryError.filter((_, i) => i !== index));
+  };
+
   /* Computed totals */
   const totalAmount = details
     .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
@@ -152,16 +277,27 @@ const SalesMaster = () => {
 
   const totalGST = details.reduce((sum, r) => {
     const netWeight   = parseFloat(r.netWeight)    || 0;
+    const pureWeight  = parseFloat(r.pureWeight)   || 0;
     const metalRate   = parseFloat(r.metalRate)    || 0;
     const making      = parseFloat(r.makingCharge) || 0;
     const stone       = parseFloat(r.stoneCharge)  || 0;
     const gstRate     = parseFloat(r.gstRate)      || 0;
-    const metalAmount = netWeight * metalRate;
+    const baseWeight  = r.touch ? pureWeight : netWeight;
+    const metalAmount = baseWeight * metalRate;
     const makingAmount = r.makingChargeType === "PERCENT"
       ? metalAmount * (making / 100) : making;
     const subTotal = metalAmount + makingAmount + stone;
     return sum + subTotal * (gstRate / 100);
   }, 0).toFixed(2);
+
+  const totalOldJewelleryAmount = oldJewelleryRows
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    .toFixed(2);
+
+  /* Net Paid Amount = jo user ne manually bhara + old jewellery ka adjustment */
+  const netPaidAmount = (
+    parseFloat(header.paidAmount || 0) + parseFloat(totalOldJewelleryAmount)
+  ).toFixed(2);
 
   /* ============================================================
      VALIDATION
@@ -173,6 +309,7 @@ const SalesMaster = () => {
     if (!header.billNo)      { hErr.billNo      = "Bill No is required";    valid = false; }
     if (!header.billDate)    { hErr.billDate     = "Bill Date is required";  valid = false; }
     if (!header.customerId)  { hErr.customerId   = "Customer is required";   valid = false; }
+    if (!header.customerType){ hErr.customerType = "Customer Type is required"; valid = false; }
     if (!header.paymentMode) { hErr.paymentMode  = "Payment Mode is required"; valid = false; }
 
     setHeaderError(hErr);
@@ -183,12 +320,26 @@ const SalesMaster = () => {
       if (!row.quantity)     { rowErr.quantity     = "Required"; valid = false; }
       if (!row.grossWeight)  { rowErr.grossWeight  = "Required"; valid = false; }
       if (!row.netWeight)    { rowErr.netWeight    = "Required"; valid = false; }
+      if (isHolesale && !row.touch) { rowErr.touch = "Required"; valid = false; }
+      // FULKAR par Touch optional hai — bharne ki zaroorat nahi
       if (!row.metalRate)    { rowErr.metalRate    = "Required"; valid = false; }
       if (!row.makingCharge) { rowErr.makingCharge = "Required"; valid = false; }
       if (!row.amount)       { rowErr.amount       = "Required"; valid = false; }
       return rowErr;
     });
     setDetailError(dErr);
+
+    // Old Jewellery validation
+    const ojErr = oldJewelleryRows.map((row) => {
+      const rowErr = {};
+      if (!row.grossWeight) { rowErr.grossWeight = "Required"; valid = false; }
+      if (!row.metalRate) { rowErr.metalRate = "Required"; valid = false; }
+      if (isHolesale && !row.touch) {
+        rowErr.touch = "Required"; valid = false;
+      }
+      return rowErr;
+    });
+    setOldJewelleryError(ojErr);
 
     return valid;
   };
@@ -206,28 +357,45 @@ const SalesMaster = () => {
       Quantity:         Number(r.quantity),
       GrossWeight:      parseFloat(r.grossWeight),
       NetWeight:        parseFloat(r.netWeight),
+      Touch:            r.touch ? parseFloat(r.touch) : null,
+      PureWeight:       r.touch ? parseFloat(r.pureWeight) : null,
       MetalRate:        parseFloat(r.metalRate),
       MakingCharge:     parseFloat(r.makingCharge),
       MakingChargeType: r.makingChargeType,
       StoneCharge:      parseFloat(r.stoneCharge || 0),
-      GSTRate:          parseFloat(r.gstRate || 3),
+      GSTRate:          parseFloat(r.gstRate || 0),
       Amount:           parseFloat(r.amount),
     }));
 
+    const oldJewelleryArray = oldJewelleryRows
+      .filter((r) => r.grossWeight && r.metalRate) // sirf complete rows bhejni hain
+      .map((r) => ({
+        EntryType:       header.customerType,
+        ItemDescription: r.itemDescription || null,
+        GrossWeight:     parseFloat(r.grossWeight),
+        Touch:           r.touch ? parseFloat(r.touch) : null,
+        DeductionWeight: r.touch ? parseFloat(r.deductionWeight) : null,
+        PureWeight:      r.touch ? parseFloat(r.pureWeight) : null,
+        MetalRate:       parseFloat(r.metalRate),
+        Amount:          parseFloat(r.amount),
+      }));
+
     const payload = {
-      TypeId:      editId ? 2 : 1,
-      SaleId:      editId || 0,
-      BillNo:      header.billNo,
-      BillDate:    header.billDate,
-      CustomerId:  Number(header.customerId),
-      TotalAmount: parseFloat(totalAmount),
-      GSTAmount:   parseFloat(totalGST),
-      PaidAmount:  parseFloat(header.paidAmount || 0),
-      PaymentMode: header.paymentMode,
-      IsActive:    header.isActive,
-      Remarks:     header.remarks,
-      CreatedBy:   createdBy,
-      DetailsJson: detailsArray,
+      TypeId:           editId ? 2 : 1,
+      SaleId:            editId || 0,
+      BillNo:            header.billNo,
+      BillDate:          header.billDate,
+      CustomerId:        Number(header.customerId),
+      CustomerType:      header.customerType,
+      TotalAmount:       parseFloat(totalAmount),
+      GSTAmount:         parseFloat(totalGST),
+      PaidAmount:        parseFloat(header.paidAmount || 0), // SP automatically isme old jewellery total add karega
+      PaymentMode:       header.paymentMode,
+      IsActive:          header.isActive,
+      Remarks:           header.remarks,
+      CreatedBy:         createdBy,
+      DetailsJson:       detailsArray,
+      OldJewelleryJson:  oldJewelleryArray.length ? oldJewelleryArray : null,
     };
 
     try {
@@ -255,6 +423,7 @@ const SalesMaster = () => {
       billNo:      "",
       billDate:    new Date().toISOString().split("T")[0],
       customerId:  "",
+      customerType:"FULKAR",
       gstAmount:   "0",
       paidAmount:  "",
       paymentMode: "CASH",
@@ -262,10 +431,12 @@ const SalesMaster = () => {
       isActive:    true,
     });
     setDetails([emptyRow()]);
+    setOldJewelleryRows([]);
     setEditId(null);
     setButtonName("Save");
     setHeaderError({});
     setDetailError([]);
+    setOldJewelleryError([]);
   };
 
   /* ============================================================
@@ -275,10 +446,13 @@ const SalesMaster = () => {
     try {
       const res = await Sales_Manage({ TypeId: 4, SaleId: saleId });
 
-      const hData = res?.data?.header?.[0];
-      const dData = res?.data?.details || [];
+      const hData  = res?.data?.header?.[0];
+      const dData  = res?.data?.details || [];
+      const ojData = res?.data?.oldJewellery || [];
 
       if (!hData) return;
+
+      const custType = hData.CustomerType || "FULKAR";
 
       setHeader({
         billNo:      hData.BillNo || "",
@@ -286,6 +460,7 @@ const SalesMaster = () => {
           ? hData.BillDate.split("T")[0]
           : new Date().toISOString().split("T")[0],
         customerId:  hData.CustomerId ? hData.CustomerId.toString() : "",
+        customerType:custType,
         gstAmount:   hData.GSTAmount  ? hData.GSTAmount.toString()  : "0",
         paidAmount:  hData.PaidAmount ? hData.PaidAmount.toString()  : "",
         paymentMode: hData.PaymentMode || "CASH",
@@ -301,14 +476,29 @@ const SalesMaster = () => {
               quantity:        d.Quantity         ? d.Quantity.toString()         : "",
               grossWeight:     d.GrossWeight      ? d.GrossWeight.toString()      : "",
               netWeight:       d.NetWeight        ? d.NetWeight.toString()        : "",
+              touch:           d.Touch            ? d.Touch.toString()            : "",
+              pureWeight:      d.PureWeight       ? d.PureWeight.toString()       : "",
               metalRate:       d.MetalRate        ? d.MetalRate.toString()        : "",
               makingCharge:    d.MakingCharge     ? d.MakingCharge.toString()     : "",
               makingChargeType:d.MakingChargeType || "FLAT",
               stoneCharge:     d.StoneCharge      ? d.StoneCharge.toString()      : "",
-              gstRate:         d.GSTRate          ? d.GSTRate.toString()          : "3",
+              gstRate:         d.GSTRate          ? d.GSTRate.toString()          : "0",
               amount:          d.Amount           ? d.Amount.toString()           : "",
             }))
           : [emptyRow()]
+      );
+
+      setOldJewelleryRows(
+        ojData.map((o) => ({
+          _id:             Date.now() + Math.random(),
+          itemDescription: o.ItemDescription || "",
+          grossWeight:     o.GrossWeight      ? o.GrossWeight.toString()      : "",
+          touch:           o.Touch            ? o.Touch.toString()            : "",
+          deductionWeight: o.DeductionWeight  ? o.DeductionWeight.toString()  : "",
+          pureWeight:      o.PureWeight       ? o.PureWeight.toString()       : "",
+          metalRate:       o.MetalRate        ? o.MetalRate.toString()        : "",
+          amount:          o.Amount           ? o.Amount.toString()           : "",
+        }))
       );
 
       setEditId(saleId);
@@ -415,10 +605,104 @@ const SalesMaster = () => {
       const res = await Sales_Manage({ TypeId: 4, SaleId: saleId });
       setViewHeader(res?.data?.header?.[0]);
       setViewDetails(res?.data?.details || []);
+      setViewOldJewellery(res?.data?.oldJewellery || []);
       setViewPopup(true);
     } catch (err) {
       console.error("View load error", err);
       Swal.fire({ icon: "error", title: "Error", text: "Could not load details" });
+    }
+  };
+
+  /* ============================================================
+     PRINT — load bill data + open preview popup
+  ============================================================ */
+  const handlePrint = async (saleId) => {
+    try {
+      setPrintLoading(true);
+      const res = await Sales_Manage({ TypeId: 6, SaleId: saleId });
+      setPrintData({
+        header:      res?.data?.header?.[0] || null,
+        details:     res?.data?.details || [],
+        oldJewellery:res?.data?.oldJewellery || [],
+      });
+      setPrintPopup(true);
+    } catch (err) {
+      console.error("Print load error", err);
+      Swal.fire({ icon: "error", title: "Error", text: "Could not load bill for print" });
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
+  /* Browser print (also lets user "Save as PDF" from the print dialog) */
+  const handlePrintNow = () => {
+    window.print();
+  };
+
+  /* Direct PDF download using html2canvas + jsPDF (loaded from CDN on demand) */
+  const loadScriptOnce = (src, globalCheck) =>
+    new Promise((resolve, reject) => {
+      if (globalCheck()) return resolve();
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+
+  const handleDownloadPdf = async () => {
+    try {
+      setPrintLoading(true);
+      await loadScriptOnce(
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+        () => !!window.html2canvas
+      );
+      await loadScriptOnce(
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+        () => !!window.jspdf
+      );
+
+      const node = document.getElementById("print-bill-area");
+      if (!node) return;
+
+      const canvas = await window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth  = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth  = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position   = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = `Bill-${printData?.header?.BillNo || "Sale"}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("PDF download error", err);
+      Swal.fire({ icon: "error", title: "Error", text: "PDF download failed" });
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -472,7 +756,7 @@ const SalesMaster = () => {
             </div>
           </div>
 
-          {/* Row 2: Customer | Payment Mode */}
+          {/* Row 2: Customer | Customer Type | Payment Mode */}
           <div className="form-row">
             <div className="form-group">
               <label>Customer</label>
@@ -494,6 +778,29 @@ const SalesMaster = () => {
             </div>
 
             <div className="form-group">
+              <label>Customer Type</label>
+              <select
+                value={header.customerType}
+                onChange={(e) => {
+                  handleCustomerTypeChange(e.target.value);
+                  setHeaderError((p) => ({ ...p, customerType: "" }));
+                }}
+              >
+                <option value="FULKAR">Retail (फुटकर)</option>
+                <option value="HOLESALE">Wholesale (थोक)</option>
+              </select>
+              <p style={{ color: "red" }}>{headerError.customerType}</p>
+              <p style={{ fontSize: "11px", color: "#6b7280", margin: "2px 0 0 0" }}>
+                Ye poori sale (naya + old jewellery) par apply hoga
+              </p>
+            </div>
+
+            
+          </div>
+
+          {/* Row 3: Paid Amount | IsActive */}
+          <div className="form-row">
+            <div className="form-group">
               <label>Payment Mode</label>
               <select
                 value={header.paymentMode}
@@ -510,10 +817,6 @@ const SalesMaster = () => {
               </select>
               <p style={{ color: "red" }}>{headerError.paymentMode}</p>
             </div>
-          </div>
-
-          {/* Row 3: Paid Amount | IsActive */}
-          <div className="form-row">
             <div className="form-group">
               <label>Paid Amount (₹)</label>
               <input
@@ -529,8 +832,18 @@ const SalesMaster = () => {
                     setHeader({ ...header, paidAmount: val });
                 }}
               />
+              {oldJewelleryRows.length > 0 && (
+                <p style={{ fontSize: "11px", color: "#16a34a", margin: "2px 0 0 0" }}>
+                  + ₹ {totalOldJewelleryAmount} Old Jewellery (auto-added) = ₹ {netPaidAmount} Net Paid
+                </p>
+              )}
             </div>
 
+            
+          </div>
+
+          {/* Row 4: Remarks */}
+          <div className="form-row">
             <div className="form-group">
               <label>Is Active</label>
               <select
@@ -540,13 +853,9 @@ const SalesMaster = () => {
                 }
               >
                 <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="false">Inactive (Draft)</option>
               </select>
             </div>
-          </div>
-
-          {/* Row 4: Remarks */}
-          <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
               <label>Remarks</label>
               <input
@@ -555,7 +864,6 @@ const SalesMaster = () => {
                 onChange={(e) => setHeader({ ...header, remarks: e.target.value })}
               />
             </div>
-            <div className="form-group"></div>
           </div>
         </div>
 
@@ -568,17 +876,19 @@ const SalesMaster = () => {
           <hr />
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1180px" }}>
               <thead>
                 <tr>
                   <th style={th}>#</th>
-                  <th style={th}>Product</th>
+                  <th style={{ ...th, minWidth: "190px" }}>Product</th>
                   <th style={th}>Qty</th>
                   <th style={th}>Gross Wt (gm)</th>
                   <th style={th}>Net Wt (gm)</th>
+                  <th style={th}>Touch % (Optional)</th>
+                  <th style={th}>Pure Wt (gm)</th>
                   <th style={th}>Metal Rate (₹)</th>
                   <th style={th}>Making Charge</th>
-                  <th style={th}>Type</th>
+                  <th style={{ ...th, minWidth: "120px" }}>Type</th>
                   <th style={th}>Stone (₹)</th>
                   <th style={th}>GST %</th>
                   <th style={th}>Amount (₹)</th>
@@ -591,15 +901,15 @@ const SalesMaster = () => {
                     <td style={td}>{index + 1}</td>
 
                     {/* Product */}
-                    <td style={td}>
+                    <td style={{ ...td, minWidth: "190px" }}>
                       <select
-                        style={inputStyle}
+                        style={selectStyle}
                         value={row.productId}
                         onChange={(e) =>
                           handleDetailChange(index, "productId", e.target.value)
                         }
                       >
-                        <option value="">-- Select --</option>
+                        <option value="">-- Select Product --</option>
                         {productList.map((p) => (
                           <option key={p.ProductId} value={p.ProductId}>
                             {p.ProductName}
@@ -654,6 +964,29 @@ const SalesMaster = () => {
                       <p style={errStyle}>{detailError[index]?.netWeight}</p>
                     </td>
 
+                    {/* Touch — optional, FULKAR par bhi bhara ja sakta hai */}
+                    <td style={td}>
+                      <input
+                        style={inputStyle} placeholder="Optional" value={row.touch}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const result = commonInputValidator(val, {
+                            numeric: true, allowDecimal: true, minLength: 1, maxLength: 5,
+                          });
+                          if (result === true) handleDetailChange(index, "touch", val);
+                        }}
+                      />
+                      <p style={errStyle}>{detailError[index]?.touch}</p>
+                    </td>
+
+                    {/* Pure Weight — auto-calc, sirf jab Touch bhara ho */}
+                    <td style={td}>
+                      <input
+                        style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
+                        placeholder="Auto" value={row.pureWeight} readOnly
+                      />
+                    </td>
+
                     {/* Metal Rate */}
                     <td style={td}>
                       <input
@@ -685,9 +1018,9 @@ const SalesMaster = () => {
                     </td>
 
                     {/* Making Charge Type */}
-                    <td style={td}>
+                    <td style={{ ...td, minWidth: "120px" }}>
                       <select
-                        style={inputStyle}
+                        style={selectStyle}
                         value={row.makingChargeType}
                         onChange={(e) =>
                           handleDetailChange(index, "makingChargeType", e.target.value)
@@ -715,15 +1048,15 @@ const SalesMaster = () => {
                     {/* GST Rate */}
                     <td style={td}>
                       <input
-                        style={inputStyle} placeholder="GST %" value={row.gstRate}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const result = commonInputValidator(val, {
-                            numeric: true, allowDecimal: true, minLength: 1, maxLength: 5,
-                          });
-                          if (result === true) handleDetailChange(index, "gstRate", val);
-                        }}
-                      />
+  style={inputStyle} placeholder="0" value={row.gstRate}
+  onChange={(e) => {
+    const val = e.target.value;
+    const result = commonInputValidator(val, {
+      numeric: true, allowDecimal: true, minLength: 0, maxLength: 5,
+    });
+    if (result === true) handleDetailChange(index, "gstRate", val);
+  }}
+/>
                     </td>
 
                     {/* Amount (read-only) */}
@@ -752,7 +1085,7 @@ const SalesMaster = () => {
               {/* TOTALS */}
               <tfoot>
                 <tr>
-                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     GST Amount:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#7c3aed" }}>
@@ -761,7 +1094,7 @@ const SalesMaster = () => {
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Total Amount:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>
@@ -770,28 +1103,182 @@ const SalesMaster = () => {
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
-                    Paid Amount:
+                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Paid Amount (Cash/Card/etc):
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
                     ₹ {parseFloat(header.paidAmount || 0).toFixed(2)}
                   </td>
                   <td style={td}></td>
                 </tr>
+                {oldJewelleryRows.length > 0 && (
+                  <tr>
+                    <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                      + Old Jewellery Amount:
+                    </td>
+                    <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
+                      ₹ {totalOldJewelleryAmount}
+                    </td>
+                    <td style={td}></td>
+                  </tr>
+                )}
                 <tr>
-                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Total Paid (Net):
+                  </td>
+                  <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
+                    ₹ {netPaidAmount}
+                  </td>
+                  <td style={td}></td>
+                </tr>
+                <tr>
+                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Balance Due:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#dc2626" }}>
-                    ₹ {(parseFloat(totalAmount) - parseFloat(header.paidAmount || 0)).toFixed(2)}
+                    ₹ {(parseFloat(totalAmount) - parseFloat(netPaidAmount)).toFixed(2)}
                   </td>
                   <td style={td}></td>
                 </tr>
               </tfoot>
             </table>
           </div>
+        </div>
 
-          <div className="btn-group" style={{ marginTop: "16px" }}>
+        {/* ===================== OLD JEWELLERY SECTION ===================== */}
+        <div className="form-card" style={{ marginTop: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0 }}>
+              Old Jewellery Exchange (Optional) — <span style={{ fontWeight: "normal", fontSize: "13px", color: "#6b7280" }}>{header.customerType === "HOLESALE" ? "Wholesale (थोक)" : "Retail (फुटकर)"}</span>
+            </h3>
+            <button className="btn-primary" onClick={addOldJewelRow}>+ Add Old Jewellery</button>
+          </div>
+          <hr />
+
+          {oldJewelleryRows.length === 0 && (
+            <p style={{ color: "#6b7280", fontSize: "13px" }}>
+              Agar customer purani jewellery exchange kar raha hai to "+ Add Old Jewellery" par click karein.
+              Type header ke "Customer Type" se aayega.
+            </p>
+          )}
+
+          {oldJewelleryRows.map((row, index) => (
+            <div
+              key={row._id}
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "16px",
+                marginBottom: "12px",
+                backgroundColor: "#fafafa",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <strong>Old Jewellery #{index + 1}</strong>
+                <button className="btn-danger-grid" onClick={() => removeOldJewelRow(index)}>
+                  Remove
+                </button>
+              </div>
+
+              <div style={oldJewelGrid}>
+                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                  <label>Item Description (Optional)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="e.g. Old Gold Chain"
+                    value={row.itemDescription}
+                    onChange={(e) => handleOldJewelChange(index, "itemDescription", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Gross Weight (gm)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Gross Wt"
+                    value={row.grossWeight}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 10,
+                      });
+                      if (result === true) handleOldJewelChange(index, "grossWeight", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.grossWeight}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Touch % (Optional)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Optional"
+                    value={row.touch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 5,
+                      });
+                      if (result === true) handleOldJewelChange(index, "touch", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.touch}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Deduction Wt (gm)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
+                    placeholder="Auto" value={row.deductionWeight} readOnly
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Pure Weight (gm)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
+                    placeholder="Auto" value={row.pureWeight} readOnly
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Metal Rate (₹)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Rate"
+                    value={row.metalRate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 10,
+                      });
+                      if (result === true) handleOldJewelChange(index, "metalRate", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.metalRate}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Amount (₹)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5", fontWeight: "bold" }}
+                    placeholder="Auto" value={row.amount} readOnly
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {oldJewelleryRows.length > 0 && (
+            <div style={{ textAlign: "right", fontWeight: "bold", color: "#16a34a", marginTop: "8px" }}>
+              Total Old Jewellery Amount: ₹ {totalOldJewelleryAmount}
+            </div>
+          )}
+        </div>
+
+        {/* ===================== SAVE / CANCEL ===================== */}
+        <div className="form-card" style={{ marginTop: "16px" }}>
+          <div className="btn-group">
             <button className="btn-primary" onClick={handleSubmit}>{buttonName}</button>
             <button className="btn-secondary" onClick={resetForm}>Cancel</button>
           </div>
@@ -800,7 +1287,8 @@ const SalesMaster = () => {
         {/* ===================== SALES LIST ===================== */}
         <div className="table-card" style={{ marginTop: "16px" }}>
           <h3>Sales List</h3>
-          <table>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ minWidth: "1100px" }}>
             <thead>
               <tr>
                 <th>Sr No</th>
@@ -808,6 +1296,7 @@ const SalesMaster = () => {
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Mobile</th>
+                <th>Type</th>
                 <th>Total Amount</th>
                 <th>GST</th>
                 <th>Paid Amount</th>
@@ -829,6 +1318,7 @@ const SalesMaster = () => {
                   </td>
                   <td>{item.CustomerName}</td>
                   <td>{item.MobileNo}</td>
+                  <td>{item.CustomerType === "HOLESALE" ? "Wholesale" : "Retail"}</td>
                   <td>₹ {item.TotalAmount}</td>
                   <td>₹ {item.GSTAmount}</td>
                   <td>₹ {item.PaidAmount}</td>
@@ -847,7 +1337,7 @@ const SalesMaster = () => {
                     </span>
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: "nowrap" }}>
                     {/* View */}
                     <button
                       className="btn-primary"
@@ -855,6 +1345,19 @@ const SalesMaster = () => {
                       onClick={() => handleView(item.SaleId)}
                     >
                       View
+                    </button>
+
+                    {/* Print */}
+                    <button
+                      style={{
+                        marginRight: "6px", padding: "4px 10px",
+                        fontSize: "12px", borderRadius: "4px",
+                        border: "none", cursor: "pointer",
+                        backgroundColor: "#0ea5e9", color: "#fff", fontWeight: "bold",
+                      }}
+                      onClick={() => handlePrint(item.SaleId)}
+                    >
+                      Print
                     </button>
 
                     {/* Edit */}
@@ -892,6 +1395,7 @@ const SalesMaster = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* ===================== VIEW POPUP ===================== */}
@@ -916,6 +1420,7 @@ const SalesMaster = () => {
                 <div><strong>Date:</strong> {viewHeader.BillDate ? new Date(viewHeader.BillDate).toLocaleDateString("en-IN") : ""}</div>
                 <div><strong>Customer:</strong> {viewHeader.CustomerName}</div>
                 <div><strong>Mobile:</strong> {viewHeader.MobileNo}</div>
+                <div><strong>Customer Type:</strong> {viewHeader.CustomerType === "HOLESALE" ? "Wholesale (थोक)" : "Retail (फुटकर)"}</div>
                 <div><strong>Payment Mode:</strong> {viewHeader.PaymentMode}</div>
                 <div><strong>Total Amount:</strong> ₹ {viewHeader.TotalAmount}</div>
                 <div><strong>GST Amount:</strong> ₹ {viewHeader.GSTAmount}</div>
@@ -947,6 +1452,8 @@ const SalesMaster = () => {
                       <th style={th}>Qty</th>
                       <th style={th}>Gross Wt</th>
                       <th style={th}>Net Wt</th>
+                      <th style={th}>Touch %</th>
+                      <th style={th}>Pure Wt</th>
                       <th style={th}>Metal Rate</th>
                       <th style={th}>Making</th>
                       <th style={th}>Type</th>
@@ -963,6 +1470,8 @@ const SalesMaster = () => {
                         <td style={td}>{d.Quantity}</td>
                         <td style={td}>{d.GrossWeight}g</td>
                         <td style={td}>{d.NetWeight}g</td>
+                        <td style={td}>{d.Touch ? `${d.Touch}%` : "-"}</td>
+                        <td style={td}>{d.PureWeight ? `${d.PureWeight}g` : "-"}</td>
                         <td style={td}>₹ {d.MetalRate}</td>
                         <td style={td}>{d.MakingCharge}</td>
                         <td style={td}>{d.MakingChargeType}</td>
@@ -975,6 +1484,55 @@ const SalesMaster = () => {
                 </table>
               </div>
 
+              {/* Old Jewellery Table (agar koi entry hai) */}
+              {viewOldJewellery.length > 0 && (
+                <>
+                  <h4 style={{ marginTop: "20px", marginBottom: "8px" }}>Old Jewellery Exchange</h4>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr>
+                          <th style={th}>#</th>
+                          <th style={th}>Type</th>
+                          <th style={th}>Description</th>
+                          <th style={th}>Gross Wt</th>
+                          <th style={th}>Touch %</th>
+                          <th style={th}>Deduction Wt</th>
+                          <th style={th}>Pure Wt</th>
+                          <th style={th}>Metal Rate</th>
+                          <th style={th}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewOldJewellery.map((o, i) => (
+                          <tr key={o.OldJewelDetailId}>
+                            <td style={td}>{i + 1}</td>
+                            <td style={td}>{o.EntryType === "HOLESALE" ? "Wholesale" : "Retail"}</td>
+                            <td style={td}>{o.ItemDescription || "-"}</td>
+                            <td style={td}>{o.GrossWeight}g</td>
+                            <td style={td}>{o.Touch ? `${o.Touch}%` : "-"}</td>
+                            <td style={td}>{o.DeductionWeight ? `${o.DeductionWeight}g` : "-"}</td>
+                            <td style={td}>{o.PureWeight ? `${o.PureWeight}g` : "-"}</td>
+                            <td style={td}>₹ {o.MetalRate}</td>
+                            <td style={td}>₹ {o.Amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={8} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                            Total Old Jewellery Amount:
+                          </td>
+                          <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
+                            ₹ {viewOldJewellery.reduce((s, o) => s + (parseFloat(o.Amount) || 0), 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
+
               <div style={{ textAlign: "right", marginTop: "16px" }}>
                 <button className="btn-secondary" onClick={() => setViewPopup(false)}>
                   Close
@@ -984,7 +1542,149 @@ const SalesMaster = () => {
           </div>
         )}
 
+        {/* ===================== PRINT PREVIEW POPUP ===================== */}
+        {printPopup && printData?.header && (
+          <div style={overlayStyle} className="print-overlay">
+            <div style={popupStyle} className="print-popup">
+
+              {/* Toolbar — hidden while printing */}
+              <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ margin: 0 }}>Print Preview — {printData.header.BillNo}</h3>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button className="btn-primary" disabled={printLoading} onClick={handlePrintNow}>
+                    🖨️ Print
+                  </button>
+                  <button className="btn-primary" disabled={printLoading} onClick={handleDownloadPdf}>
+                    {printLoading ? "Preparing..." : "⬇️ Download PDF"}
+                  </button>
+                  <button className="btn-secondary" onClick={() => setPrintPopup(false)}>
+                    Close
+                  </button>
+                </div>
+              </div>
+              <hr className="no-print" />
+
+              {/* Printable Bill Area */}
+              <div id="print-bill-area" style={{ padding: "12px", background: "#fff" }}>
+                <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                  <h2 style={{ margin: "0 0 4px 0" }}>Sales Invoice</h2>
+                  <div style={{ fontSize: "13px", color: "#6b7280" }}>
+                    {printData.header.CustomerType === "HOLESALE" ? "Wholesale (थोक)" : "Retail (फुटकर)"} Bill
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "14px", marginBottom: "16px", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px" }}>
+                  <div><strong>Bill No:</strong> {printData.header.BillNo}</div>
+                  <div><strong>Date:</strong> {printData.header.BillDate ? new Date(printData.header.BillDate).toLocaleDateString("en-IN") : ""}</div>
+                  <div><strong>Customer:</strong> {printData.header.CustomerName}</div>
+                  <div><strong>Mobile:</strong> {printData.header.MobileNo}</div>
+                  <div><strong>Payment Mode:</strong> {printData.header.PaymentMode}</div>
+                  {printData.header.Remarks && (<div><strong>Remarks:</strong> {printData.header.Remarks}</div>)}
+                </div>
+
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", marginBottom: "16px" }}>
+                  <thead>
+                    <tr>
+                      <th style={printTh}>#</th>
+                      <th style={printTh}>Product</th>
+                      <th style={printTh}>Qty</th>
+                      <th style={printTh}>Gross Wt</th>
+                      <th style={printTh}>Net Wt</th>
+                      <th style={printTh}>Touch %</th>
+                      <th style={printTh}>Pure Wt</th>
+                      <th style={printTh}>Metal Rate</th>
+                      <th style={printTh}>Making</th>
+                      <th style={printTh}>Stone</th>
+                      <th style={printTh}>GST %</th>
+                      <th style={printTh}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printData.details.map((d, i) => (
+                      <tr key={d.SaleDetailId || i}>
+                        <td style={printTd}>{i + 1}</td>
+                        <td style={printTd}>{d.ProductName}</td>
+                        <td style={printTd}>{d.Quantity}</td>
+                        <td style={printTd}>{d.GrossWeight}g</td>
+                        <td style={printTd}>{d.NetWeight}g</td>
+                        <td style={printTd}>{d.Touch ? `${d.Touch}%` : "-"}</td>
+                        <td style={printTd}>{d.PureWeight ? `${d.PureWeight}g` : "-"}</td>
+                        <td style={printTd}>₹ {d.MetalRate}</td>
+                        <td style={printTd}>{d.MakingCharge}</td>
+                        <td style={printTd}>₹ {d.StoneCharge}</td>
+                        <td style={printTd}>{d.GSTRate}%</td>
+                        <td style={printTd}>₹ {d.Amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {printData.oldJewellery.length > 0 && (
+                  <>
+                    <h4 style={{ marginBottom: "8px" }}>Old Jewellery Exchange</h4>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", marginBottom: "16px" }}>
+                      <thead>
+                        <tr>
+                          <th style={printTh}>#</th>
+                          <th style={printTh}>Description</th>
+                          <th style={printTh}>Gross Wt</th>
+                          <th style={printTh}>Touch %</th>
+                          <th style={printTh}>Pure Wt</th>
+                          <th style={printTh}>Metal Rate</th>
+                          <th style={printTh}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {printData.oldJewellery.map((o, i) => (
+                          <tr key={o.OldJewelDetailId || i}>
+                            <td style={printTd}>{i + 1}</td>
+                            <td style={printTd}>{o.ItemDescription || "-"}</td>
+                            <td style={printTd}>{o.GrossWeight}g</td>
+                            <td style={printTd}>{o.Touch ? `${o.Touch}%` : "-"}</td>
+                            <td style={printTd}>{o.PureWeight ? `${o.PureWeight}g` : "-"}</td>
+                            <td style={printTd}>₹ {o.MetalRate}</td>
+                            <td style={printTd}>₹ {o.Amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                <div style={{ marginLeft: "auto", width: "260px", fontSize: "13px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span>GST Amount:</span><strong>₹ {printData.header.GSTAmount}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span>Total Amount:</span><strong>₹ {printData.header.TotalAmount}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span>Paid Amount:</span><strong>₹ {printData.header.PaidAmount}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderTop: "1px solid #e2e8f0" }}>
+                    <span>Balance Due:</span><strong>₹ {printData.header.BalanceDue}</strong>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "center", marginTop: "24px", fontSize: "11px", color: "#6b7280" }}>
+                  Thank you for your business!
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* Print-only CSS: jab print ho to sirf bill area dikhe, baki page hide ho */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #print-bill-area, #print-bill-area * { visibility: visible; }
+          #print-bill-area { position: absolute; top: 0; left: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </ProtectedRoute>
   );
 };
@@ -998,10 +1698,22 @@ const td = {
   padding: "6px 8px", border: "1px solid #e2e8f0", verticalAlign: "top",
 };
 const inputStyle = {
-  width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1",
+  width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1",
   borderRadius: "4px", fontSize: "14px", boxSizing: "border-box",
 };
+const selectStyle = {
+  width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1",
+  borderRadius: "4px", fontSize: "14px", boxSizing: "border-box",
+  minHeight: "38px", minWidth: "170px", backgroundColor: "#fff",
+};
 const errStyle = { color: "red", fontSize: "11px", margin: "2px 0 0 0" };
+
+const oldJewelGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "12px",
+  alignItems: "start",
+};
 
 const overlayStyle = {
   position: "fixed", top: 0, left: 0,
@@ -1009,12 +1721,21 @@ const overlayStyle = {
   backgroundColor: "rgba(0,0,0,0.5)",
   display: "flex", alignItems: "center", justifyContent: "center",
   zIndex: 1000,
+  padding: "16px",
 };
 const popupStyle = {
   backgroundColor: "#fff", borderRadius: "8px",
-  padding: "24px", width: "90%", maxWidth: "1000px",
-  maxHeight: "85vh", overflowY: "auto",
+  padding: "24px", width: "100%", maxWidth: "1000px",
+  maxHeight: "90vh", overflowY: "auto",
   boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+};
+
+const printTh = {
+  padding: "6px 8px", background: "#f1f5f9",
+  border: "1px solid #cbd5e1", textAlign: "left",
+};
+const printTd = {
+  padding: "5px 8px", border: "1px solid #e2e8f0",
 };
 
 export default SalesMaster;

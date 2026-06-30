@@ -8,6 +8,14 @@ import { Sales_Manage } from "@/lib/services/TransactionsService";
 import Swal from "sweetalert2";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
+/* ------------------------------------------------------------------
+   METAL RATE LOGIC (same as Purchase Master)
+   GOLD   -> Rate diya jata hai 10 gm ke hisab se   (divisor = 10)
+   SILVER -> Rate diya jata hai 1 kg (1000 gm) ke hisab se (divisor = 1000)
+   Metal Amount = Weight * Rate / Divisor
+------------------------------------------------------------------- */
+const getMetalDivisor = (metalType) => (metalType === "SILVER" ? 1000 : 10);
+
 /* ------------------------------------------------------------------ */
 const emptyRow = () => ({
   _id:             Date.now() + Math.random(),
@@ -15,6 +23,7 @@ const emptyRow = () => ({
   quantity:        "",
   grossWeight:     "",
   netWeight:       "",
+  metalType:       "GOLD",   // ✅ NAYA — GOLD / SILVER
   touch:           "",   // HOLESALE only (CustomerType driven, header level)
   pureWeight:      "",   // HOLESALE only (auto-calc = netWeight * touch/100)
   metalRate:       "",
@@ -30,6 +39,7 @@ const emptyOldJewelRow = () => ({
   _id:             Date.now() + Math.random(),
   itemDescription: "",
   grossWeight:     "",
+  metalType:       "GOLD",   // ✅ NAYA — GOLD / SILVER
   touch:           "",     // HOLESALE only
   deductionWeight: "",     // HOLESALE only (auto-calc from touch)
   pureWeight:      "",     // HOLESALE only (auto-calc)
@@ -119,9 +129,10 @@ const SalesMaster = () => {
 
   /* ============================================================
      AMOUNT AUTO CALCULATE — SALE DETAILS
-     FULKAR    : Amount = (NetWeight × MetalRate) + Making + Stone + GST
+     FULKAR    : Amount = (NetWeight × MetalRate / Divisor) + Making + Stone + GST
      HOLESALE  : PureWeight = NetWeight × Touch/100
-                 Amount      = (PureWeight × MetalRate) + Making + Stone + GST
+                 Amount      = (PureWeight × MetalRate / Divisor) + Making + Stone + GST
+     Divisor   : GOLD = 10 (rate per 10gm), SILVER = 1000 (rate per kg)
   ============================================================ */
   const calculateAmount = (row) => {
     const netWeight   = parseFloat(row.netWeight)    || 0;
@@ -130,12 +141,13 @@ const SalesMaster = () => {
     const making      = parseFloat(row.makingCharge) || 0;
     const stone       = parseFloat(row.stoneCharge)  || 0;
     const gstRate     = parseFloat(row.gstRate)      || 0;
+    const divisor     = getMetalDivisor(row.metalType);
 
     // Touch optional hai (FULKAR par bhi bhara ja sakta hai) — agar Touch bhara hai
     // to PureWeight use hoga, warna NetWeight se hi amount nikalega.
     const baseWeight = row.touch ? pureWeight : netWeight;
 
-    const metalAmount = baseWeight * metalRate;
+    const metalAmount = (baseWeight * metalRate) / divisor;
 
     const makingAmount =
       row.makingChargeType === "PERCENT"
@@ -164,22 +176,24 @@ const SalesMaster = () => {
 
   /* ============================================================
      OLD JEWELLERY CALCULATIONS
-     FULKAR    : Amount = GrossWeight × MetalRate
+     FULKAR    : Amount = GrossWeight × MetalRate / Divisor
      HOLESALE  : DeductionWeight = GrossWeight × (100 - Touch) / 100
                  PureWeight      = GrossWeight - DeductionWeight
-                 Amount          = PureWeight × MetalRate
+                 Amount          = PureWeight × MetalRate / Divisor
+     Divisor   : GOLD = 10 (rate per 10gm), SILVER = 1000 (rate per kg)
   ============================================================ */
   const calculateOldJewelRow = (row) => {
     const grossWeight = parseFloat(row.grossWeight) || 0;
     const metalRate   = parseFloat(row.metalRate)   || 0;
+    const divisor     = getMetalDivisor(row.metalType);
 
     // Touch optional hai (FULKAR par bhi bhara ja sakta hai) — bhara ho to
-    // Deduction/PureWeight se Amount, warna seedha GrossWeight × MetalRate
+    // Deduction/PureWeight se Amount, warna seedha GrossWeight × MetalRate / Divisor
     if (row.touch) {
       const touch = parseFloat(row.touch) || 0;
       const deductionWeight = grossWeight * (100 - touch) / 100;
       const pureWeight      = grossWeight - deductionWeight;
-      const amount          = pureWeight * metalRate;
+      const amount          = (pureWeight * metalRate) / divisor;
 
       return {
         ...row,
@@ -189,7 +203,7 @@ const SalesMaster = () => {
       };
     }
 
-    const amount = grossWeight * metalRate;
+    const amount = (grossWeight * metalRate) / divisor;
     return {
       ...row,
       deductionWeight: "",
@@ -219,7 +233,7 @@ const SalesMaster = () => {
     const updated = [...details];
     updated[index][field] = value;
 
-    const amountFields = ["netWeight", "touch", "metalRate", "makingCharge", "makingChargeType", "stoneCharge", "gstRate"];
+    const amountFields = ["netWeight", "touch", "metalType", "metalRate", "makingCharge", "makingChargeType", "stoneCharge", "gstRate"];
 
     if (amountFields.includes(field)) {
       updated[index] = recalcDetailRow(updated[index]);
@@ -248,7 +262,7 @@ const SalesMaster = () => {
     const updated = [...oldJewelleryRows];
     updated[index][field] = value;
 
-    const recalcFields = ["grossWeight", "touch", "metalRate"];
+    const recalcFields = ["grossWeight", "touch", "metalType", "metalRate"];
     if (recalcFields.includes(field)) {
       updated[index] = calculateOldJewelRow(updated[index]);
     }
@@ -282,8 +296,9 @@ const SalesMaster = () => {
     const making      = parseFloat(r.makingCharge) || 0;
     const stone       = parseFloat(r.stoneCharge)  || 0;
     const gstRate     = parseFloat(r.gstRate)      || 0;
+    const divisor     = getMetalDivisor(r.metalType);
     const baseWeight  = r.touch ? pureWeight : netWeight;
-    const metalAmount = baseWeight * metalRate;
+    const metalAmount = (baseWeight * metalRate) / divisor;
     const makingAmount = r.makingChargeType === "PERCENT"
       ? metalAmount * (making / 100) : making;
     const subTotal = metalAmount + makingAmount + stone;
@@ -357,6 +372,7 @@ const SalesMaster = () => {
       Quantity:         Number(r.quantity),
       GrossWeight:      parseFloat(r.grossWeight),
       NetWeight:        parseFloat(r.netWeight),
+      MetalType:        r.metalType,
       Touch:            r.touch ? parseFloat(r.touch) : null,
       PureWeight:       r.touch ? parseFloat(r.pureWeight) : null,
       MetalRate:        parseFloat(r.metalRate),
@@ -373,6 +389,7 @@ const SalesMaster = () => {
         EntryType:       header.customerType,
         ItemDescription: r.itemDescription || null,
         GrossWeight:     parseFloat(r.grossWeight),
+        MetalType:       r.metalType,
         Touch:           r.touch ? parseFloat(r.touch) : null,
         DeductionWeight: r.touch ? parseFloat(r.deductionWeight) : null,
         PureWeight:      r.touch ? parseFloat(r.pureWeight) : null,
@@ -476,6 +493,7 @@ const SalesMaster = () => {
               quantity:        d.Quantity         ? d.Quantity.toString()         : "",
               grossWeight:     d.GrossWeight      ? d.GrossWeight.toString()      : "",
               netWeight:       d.NetWeight        ? d.NetWeight.toString()        : "",
+              metalType:       d.MetalType        || "GOLD",
               touch:           d.Touch            ? d.Touch.toString()            : "",
               pureWeight:      d.PureWeight       ? d.PureWeight.toString()       : "",
               metalRate:       d.MetalRate        ? d.MetalRate.toString()        : "",
@@ -493,6 +511,7 @@ const SalesMaster = () => {
           _id:             Date.now() + Math.random(),
           itemDescription: o.ItemDescription || "",
           grossWeight:     o.GrossWeight      ? o.GrossWeight.toString()      : "",
+          metalType:       o.MetalType        || "GOLD",
           touch:           o.Touch            ? o.Touch.toString()            : "",
           deductionWeight: o.DeductionWeight  ? o.DeductionWeight.toString()  : "",
           pureWeight:      o.PureWeight       ? o.PureWeight.toString()       : "",
@@ -876,7 +895,7 @@ const SalesMaster = () => {
           <hr />
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1180px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1280px" }}>
               <thead>
                 <tr>
                   <th style={th}>#</th>
@@ -884,6 +903,7 @@ const SalesMaster = () => {
                   <th style={th}>Qty</th>
                   <th style={th}>Gross Wt (gm)</th>
                   <th style={th}>Net Wt (gm)</th>
+                  <th style={{ ...th, minWidth: "110px" }}>Metal</th>
                   <th style={th}>Touch % (Optional)</th>
                   <th style={th}>Pure Wt (gm)</th>
                   <th style={th}>Metal Rate (₹)</th>
@@ -964,6 +984,18 @@ const SalesMaster = () => {
                       <p style={errStyle}>{detailError[index]?.netWeight}</p>
                     </td>
 
+                    {/* Metal Type — Gold(/10gm) / Silver(/kg) ✅ NAYA */}
+                    <td style={{ ...td, minWidth: "110px" }}>
+                      <select
+                        style={selectStyle}
+                        value={row.metalType}
+                        onChange={(e) => handleDetailChange(index, "metalType", e.target.value)}
+                      >
+                        <option value="GOLD">Gold (/10gm)</option>
+                        <option value="SILVER">Silver (/kg)</option>
+                      </select>
+                    </td>
+
                     {/* Touch — optional, FULKAR par bhi bhara ja sakta hai */}
                     <td style={td}>
                       <input
@@ -990,7 +1022,9 @@ const SalesMaster = () => {
                     {/* Metal Rate */}
                     <td style={td}>
                       <input
-                        style={inputStyle} placeholder="Metal Rate" value={row.metalRate}
+                        style={inputStyle}
+                        placeholder={row.metalType === "SILVER" ? "Rate /kg" : "Rate /10gm"}
+                        value={row.metalRate}
                         onChange={(e) => {
                           const val = e.target.value;
                           const result = commonInputValidator(val, {
@@ -1085,7 +1119,7 @@ const SalesMaster = () => {
               {/* TOTALS */}
               <tfoot>
                 <tr>
-                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     GST Amount:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#7c3aed" }}>
@@ -1094,7 +1128,7 @@ const SalesMaster = () => {
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Total Amount:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>
@@ -1103,7 +1137,7 @@ const SalesMaster = () => {
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Paid Amount (Cash/Card/etc):
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
@@ -1113,7 +1147,7 @@ const SalesMaster = () => {
                 </tr>
                 {oldJewelleryRows.length > 0 && (
                   <tr>
-                    <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                       + Old Jewellery Amount:
                     </td>
                     <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
@@ -1123,7 +1157,7 @@ const SalesMaster = () => {
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Total Paid (Net):
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
@@ -1132,7 +1166,7 @@ const SalesMaster = () => {
                   <td style={td}></td>
                 </tr>
                 <tr>
-                  <td colSpan={12} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                  <td colSpan={13} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                     Balance Due:
                   </td>
                   <td style={{ ...td, fontWeight: "bold", color: "#dc2626" }}>
@@ -1209,6 +1243,18 @@ const SalesMaster = () => {
                 </div>
 
                 <div className="form-group">
+                  <label>Metal</label>
+                  <select
+                    style={selectStyle}
+                    value={row.metalType}
+                    onChange={(e) => handleOldJewelChange(index, "metalType", e.target.value)}
+                  >
+                    <option value="GOLD">Gold (/10gm)</option>
+                    <option value="SILVER">Silver (/kg)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label>Touch % (Optional)</label>
                   <input
                     style={inputStyle}
@@ -1242,7 +1288,7 @@ const SalesMaster = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Metal Rate (₹)</label>
+                  <label>Metal Rate (₹{row.metalType === "SILVER" ? "/kg" : "/10gm"})</label>
                   <input
                     style={inputStyle}
                     placeholder="Rate"
@@ -1452,6 +1498,7 @@ const SalesMaster = () => {
                       <th style={th}>Qty</th>
                       <th style={th}>Gross Wt</th>
                       <th style={th}>Net Wt</th>
+                      <th style={th}>Metal</th>
                       <th style={th}>Touch %</th>
                       <th style={th}>Pure Wt</th>
                       <th style={th}>Metal Rate</th>
@@ -1470,6 +1517,7 @@ const SalesMaster = () => {
                         <td style={td}>{d.Quantity}</td>
                         <td style={td}>{d.GrossWeight}g</td>
                         <td style={td}>{d.NetWeight}g</td>
+                        <td style={td}>{d.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
                         <td style={td}>{d.Touch ? `${d.Touch}%` : "-"}</td>
                         <td style={td}>{d.PureWeight ? `${d.PureWeight}g` : "-"}</td>
                         <td style={td}>₹ {d.MetalRate}</td>
@@ -1495,6 +1543,7 @@ const SalesMaster = () => {
                           <th style={th}>#</th>
                           <th style={th}>Type</th>
                           <th style={th}>Description</th>
+                          <th style={th}>Metal</th>
                           <th style={th}>Gross Wt</th>
                           <th style={th}>Touch %</th>
                           <th style={th}>Deduction Wt</th>
@@ -1509,6 +1558,7 @@ const SalesMaster = () => {
                             <td style={td}>{i + 1}</td>
                             <td style={td}>{o.EntryType === "HOLESALE" ? "Wholesale" : "Retail"}</td>
                             <td style={td}>{o.ItemDescription || "-"}</td>
+                            <td style={td}>{o.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
                             <td style={td}>{o.GrossWeight}g</td>
                             <td style={td}>{o.Touch ? `${o.Touch}%` : "-"}</td>
                             <td style={td}>{o.DeductionWeight ? `${o.DeductionWeight}g` : "-"}</td>
@@ -1520,7 +1570,7 @@ const SalesMaster = () => {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={8} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                          <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
                             Total Old Jewellery Amount:
                           </td>
                           <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
@@ -1590,6 +1640,7 @@ const SalesMaster = () => {
                       <th style={printTh}>Qty</th>
                       <th style={printTh}>Gross Wt</th>
                       <th style={printTh}>Net Wt</th>
+                      <th style={printTh}>Metal</th>
                       <th style={printTh}>Touch %</th>
                       <th style={printTh}>Pure Wt</th>
                       <th style={printTh}>Metal Rate</th>
@@ -1607,6 +1658,7 @@ const SalesMaster = () => {
                         <td style={printTd}>{d.Quantity}</td>
                         <td style={printTd}>{d.GrossWeight}g</td>
                         <td style={printTd}>{d.NetWeight}g</td>
+                        <td style={printTd}>{d.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
                         <td style={printTd}>{d.Touch ? `${d.Touch}%` : "-"}</td>
                         <td style={printTd}>{d.PureWeight ? `${d.PureWeight}g` : "-"}</td>
                         <td style={printTd}>₹ {d.MetalRate}</td>
@@ -1627,6 +1679,7 @@ const SalesMaster = () => {
                         <tr>
                           <th style={printTh}>#</th>
                           <th style={printTh}>Description</th>
+                          <th style={printTh}>Metal</th>
                           <th style={printTh}>Gross Wt</th>
                           <th style={printTh}>Touch %</th>
                           <th style={printTh}>Pure Wt</th>
@@ -1639,6 +1692,7 @@ const SalesMaster = () => {
                           <tr key={o.OldJewelDetailId || i}>
                             <td style={printTd}>{i + 1}</td>
                             <td style={printTd}>{o.ItemDescription || "-"}</td>
+                            <td style={printTd}>{o.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
                             <td style={printTd}>{o.GrossWeight}g</td>
                             <td style={printTd}>{o.Touch ? `${o.Touch}%` : "-"}</td>
                             <td style={printTd}>{o.PureWeight ? `${o.PureWeight}g` : "-"}</td>

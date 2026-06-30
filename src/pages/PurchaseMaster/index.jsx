@@ -8,6 +8,14 @@ import { Purchase_Manage } from "@/lib/services/TransactionsService";
 import Swal from "sweetalert2";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
+/* ------------------------------------------------------------------
+   METAL RATE LOGIC
+   GOLD   -> Rate diya jata hai 10 gm ke hisab se   (divisor = 10)
+   SILVER -> Rate diya jata hai 1 kg (1000 gm) ke hisab se (divisor = 1000)
+   Metal Amount = Weight * Rate / Divisor
+------------------------------------------------------------------- */
+const getMetalDivisor = (metalType) => (metalType === "SILVER" ? 1000 : 10);
+
 /* ------------------------------------------------------------------ */
 const emptyRow = () => ({
   _id:             Date.now() + Math.random(),
@@ -15,11 +23,25 @@ const emptyRow = () => ({
   quantity:        "",
   grossWeight:     "",
   netWeight:       "",
+  metalType:       "GOLD",   // ✅ NAYA — GOLD / SILVER
   metalRate:       "",
   makingCharge:    "",
   makingChargeType:"FLAT",
   stoneCharge:     "",
   amount:          "",
+});
+
+/* ✅ NAYA — Old Jewellery empty row (Sales Master jaisa) */
+const emptyOldJewelRow = () => ({
+  _id:             Date.now() + Math.random(),
+  itemDescription: "",
+  grossWeight:     "",
+  metalType:       "GOLD",   // GOLD / SILVER
+  touch:           "",       // Optional — bhara ho to PureWeight se Amount nikalega
+  deductionWeight: "",       // auto-calc (jab Touch bhara ho)
+  pureWeight:      "",       // auto-calc (jab Touch bhara ho)
+  metalRate:       "",
+  amount:          "",       // auto-calc
 });
 
 /* ================================================================== */
@@ -32,7 +54,7 @@ const PurchaseMaster = () => {
     supplierId:   "",
     paidAmount:   "",
     remarks:      "",
-    isActive:     true,   // ✅ NAYA
+    isActive:     true,
   });
 
   const [editId,      setEditId]      = useState(null);
@@ -43,6 +65,10 @@ const PurchaseMaster = () => {
   const [details,     setDetails]     = useState([emptyRow()]);
   const [detailError, setDetailError] = useState([]);
 
+  /* ---------------- OLD JEWELLERY ROWS STATES ---------------- ✅ NAYA */
+  const [oldJewelleryRows,  setOldJewelleryRows]  = useState([]);
+  const [oldJewelleryError, setOldJewelleryError] = useState([]);
+
   /* ---------------- LIST STATE ---------------- */
   const [purchaseList, setPurchaseList] = useState([]);
 
@@ -50,10 +76,11 @@ const PurchaseMaster = () => {
   const [supplierList, setSupplierList] = useState([]);
   const [productList,  setProductList]  = useState([]);
 
-  /* ---------------- VIEW POPUP STATES ---------------- */  // ✅ NAYA
-  const [viewPopup,    setViewPopup]    = useState(false);
-  const [viewHeader,   setViewHeader]   = useState(null);
-  const [viewDetails,  setViewDetails]  = useState([]);
+  /* ---------------- VIEW POPUP STATES ---------------- */
+  const [viewPopup,        setViewPopup]        = useState(false);
+  const [viewHeader,       setViewHeader]       = useState(null);
+  const [viewDetails,      setViewDetails]      = useState([]);
+  const [viewOldJewellery, setViewOldJewellery] = useState([]);   // ✅ NAYA
 
   /* ============================================================
      LOAD DROPDOWNS
@@ -89,14 +116,17 @@ const PurchaseMaster = () => {
   }, []);
 
   /* ============================================================
-     AMOUNT AUTO CALCULATE
+     AMOUNT AUTO CALCULATE — PURCHASE DETAILS
+     Metal Amount = NetWeight * MetalRate / Divisor (Gold=10, Silver=1000)
   ============================================================ */
   const calculateAmount = (row) => {
     const netWeight   = parseFloat(row.netWeight)    || 0;
     const metalRate   = parseFloat(row.metalRate)    || 0;
     const making      = parseFloat(row.makingCharge) || 0;
     const stone       = parseFloat(row.stoneCharge)  || 0;
-    const metalAmount = netWeight * metalRate;
+    const divisor     = getMetalDivisor(row.metalType);
+
+    const metalAmount = (netWeight * metalRate) / divisor;
 
     const makingAmount =
       row.makingChargeType === "PERCENT"
@@ -107,14 +137,50 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     DETAIL ROW HANDLERS
+     OLD JEWELLERY CALCULATIONS  ✅ NAYA
+     Bina Touch  : Amount = GrossWeight * MetalRate / Divisor
+     Touch hone par:
+        DeductionWeight = GrossWeight * (100 - Touch) / 100
+        PureWeight       = GrossWeight - DeductionWeight
+        Amount           = PureWeight * MetalRate / Divisor
+  ============================================================ */
+  const calculateOldJewelRow = (row) => {
+    const grossWeight = parseFloat(row.grossWeight) || 0;
+    const metalRate   = parseFloat(row.metalRate)   || 0;
+    const divisor     = getMetalDivisor(row.metalType);
+
+    if (row.touch) {
+      const touch = parseFloat(row.touch) || 0;
+      const deductionWeight = grossWeight * (100 - touch) / 100;
+      const pureWeight      = grossWeight - deductionWeight;
+      const amount          = (pureWeight * metalRate) / divisor;
+
+      return {
+        ...row,
+        deductionWeight: grossWeight && touch ? deductionWeight.toFixed(3) : "",
+        pureWeight:       grossWeight && touch ? pureWeight.toFixed(3)      : "",
+        amount:           grossWeight && touch ? amount.toFixed(2)          : "",
+      };
+    }
+
+    const amount = (grossWeight * metalRate) / divisor;
+    return {
+      ...row,
+      deductionWeight: "",
+      pureWeight:      "",
+      amount: grossWeight && metalRate ? amount.toFixed(2) : "",
+    };
+  };
+
+  /* ============================================================
+     DETAIL ROW HANDLERS — PURCHASE DETAILS
   ============================================================ */
   const handleDetailChange = (index, field, value) => {
     const updated = [...details];
     updated[index][field] = value;
 
     const amountFields = [
-      "netWeight", "metalRate", "makingCharge", "makingChargeType", "stoneCharge"
+      "netWeight", "metalRate", "metalType", "makingCharge", "makingChargeType", "stoneCharge"
     ];
     if (amountFields.includes(field)) {
       updated[index].amount = calculateAmount(updated[index]);
@@ -136,9 +202,48 @@ const PurchaseMaster = () => {
     setDetailError(detailError.filter((_, i) => i !== index));
   };
 
-  const totalAmount = details
+  /* ============================================================
+     OLD JEWELLERY ROW HANDLERS  ✅ NAYA
+  ============================================================ */
+  const handleOldJewelChange = (index, field, value) => {
+    const updated = [...oldJewelleryRows];
+    updated[index][field] = value;
+
+    const recalcFields = ["grossWeight", "touch", "metalRate", "metalType"];
+    if (recalcFields.includes(field)) {
+      updated[index] = calculateOldJewelRow(updated[index]);
+    }
+
+    setOldJewelleryRows(updated);
+
+    const errCopy = [...oldJewelleryError];
+    if (errCopy[index]) {
+      errCopy[index][field] = "";
+      setOldJewelleryError(errCopy);
+    }
+  };
+
+  const addOldJewelRow = () =>
+    setOldJewelleryRows([...oldJewelleryRows, emptyOldJewelRow()]);
+
+  const removeOldJewelRow = (index) => {
+    setOldJewelleryRows(oldJewelleryRows.filter((_, i) => i !== index));
+    setOldJewelleryError(oldJewelleryError.filter((_, i) => i !== index));
+  };
+
+  /* Computed totals */
+  const totalDetailsAmount = details
     .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
     .toFixed(2);
+
+  const totalOldJewelleryAmount = oldJewelleryRows
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    .toFixed(2);
+
+  /* Grand Total Payable = New Items + Old Jewellery purchased */
+  const totalAmount = (
+    parseFloat(totalDetailsAmount) + parseFloat(totalOldJewelleryAmount)
+  ).toFixed(2);
 
   /* ============================================================
      VALIDATION
@@ -166,6 +271,15 @@ const PurchaseMaster = () => {
     });
     setDetailError(dErr);
 
+    /* Old Jewellery validation ✅ NAYA */
+    const ojErr = oldJewelleryRows.map((row) => {
+      const rowErr = {};
+      if (!row.grossWeight) { rowErr.grossWeight = "Required"; valid = false; }
+      if (!row.metalRate)   { rowErr.metalRate   = "Required"; valid = false; }
+      return rowErr;
+    });
+    setOldJewelleryError(ojErr);
+
     return valid;
   };
 
@@ -182,6 +296,7 @@ const PurchaseMaster = () => {
       Quantity:         Number(r.quantity),
       GrossWeight:      parseFloat(r.grossWeight),
       NetWeight:        parseFloat(r.netWeight),
+      MetalType:        r.metalType,
       MetalRate:        parseFloat(r.metalRate),
       MakingCharge:     parseFloat(r.makingCharge),
       MakingChargeType: r.makingChargeType,
@@ -189,18 +304,33 @@ const PurchaseMaster = () => {
       Amount:           parseFloat(r.amount),
     }));
 
+    /* ✅ NAYA — Old Jewellery payload (sirf complete rows) */
+    const oldJewelleryArray = oldJewelleryRows
+      .filter((r) => r.grossWeight && r.metalRate)
+      .map((r) => ({
+        ItemDescription: r.itemDescription || null,
+        GrossWeight:     parseFloat(r.grossWeight),
+        MetalType:       r.metalType,
+        Touch:           r.touch ? parseFloat(r.touch) : null,
+        DeductionWeight: r.touch ? parseFloat(r.deductionWeight) : null,
+        PureWeight:      r.touch ? parseFloat(r.pureWeight) : null,
+        MetalRate:       parseFloat(r.metalRate),
+        Amount:          parseFloat(r.amount),
+      }));
+
     const payload = {
-      TypeId:       editId ? 2 : 1,
-      PurchaseId:   editId || 0,
-      PurchaseNo:   header.purchaseNo,
-      PurchaseDate: header.purchaseDate,
-      SupplierId:   Number(header.supplierId),
-      TotalAmount:  parseFloat(totalAmount),
-      PaidAmount:   parseFloat(header.paidAmount || 0),
-      IsActive:     header.isActive,          // ✅ NAYA
-      Remarks:      header.remarks,
-      CreatedBy:    createdBy,
-      DetailsJson:  detailsArray,
+      TypeId:           editId ? 2 : 1,
+      PurchaseId:       editId || 0,
+      PurchaseNo:       header.purchaseNo,
+      PurchaseDate:     header.purchaseDate,
+      SupplierId:       Number(header.supplierId),
+      TotalAmount:      parseFloat(totalAmount),
+      PaidAmount:       parseFloat(header.paidAmount || 0),
+      IsActive:         header.isActive,
+      Remarks:          header.remarks,
+      CreatedBy:        createdBy,
+      DetailsJson:      detailsArray,
+      OldJewelleryJson: oldJewelleryArray.length ? oldJewelleryArray : null,   // ✅ NAYA
     };
 
     try {
@@ -230,13 +360,15 @@ const PurchaseMaster = () => {
       supplierId:   "",
       paidAmount:   "",
       remarks:      "",
-      isActive:     true,   // ✅ NAYA
+      isActive:     true,
     });
     setDetails([emptyRow()]);
+    setOldJewelleryRows([]);          // ✅ NAYA
     setEditId(null);
     setButtonName("Save");
     setHeaderError({});
     setDetailError([]);
+    setOldJewelleryError([]);         // ✅ NAYA
   };
 
   /* ============================================================
@@ -246,8 +378,9 @@ const PurchaseMaster = () => {
     try {
       const res = await Purchase_Manage({ TypeId: 4, PurchaseId: purchaseId });
 
-      const hData = res?.data?.header?.[0];
-      const dData = res?.data?.details || [];
+      const hData  = res?.data?.header?.[0];
+      const dData  = res?.data?.details || [];
+      const ojData = res?.data?.oldJewellery || [];   // ✅ NAYA
 
       if (!hData) return;
 
@@ -259,7 +392,7 @@ const PurchaseMaster = () => {
         supplierId: hData.SupplierId ? hData.SupplierId.toString() : "",
         paidAmount: hData.PaidAmount ? hData.PaidAmount.toString() : "",
         remarks:    hData.Remarks || "",
-        isActive:   hData.IsActive ?? true,   // ✅ NAYA
+        isActive:   hData.IsActive ?? true,
       });
 
       setDetails(
@@ -270,6 +403,7 @@ const PurchaseMaster = () => {
               quantity:        d.Quantity         ? d.Quantity.toString()         : "",
               grossWeight:     d.GrossWeight      ? d.GrossWeight.toString()      : "",
               netWeight:       d.NetWeight        ? d.NetWeight.toString()        : "",
+              metalType:       d.MetalType        || "GOLD",
               metalRate:       d.MetalRate        ? d.MetalRate.toString()        : "",
               makingCharge:    d.MakingCharge     ? d.MakingCharge.toString()     : "",
               makingChargeType:d.MakingChargeType || "FLAT",
@@ -277,6 +411,21 @@ const PurchaseMaster = () => {
               amount:          d.Amount           ? d.Amount.toString()           : "",
             }))
           : [emptyRow()]
+      );
+
+      /* ✅ NAYA */
+      setOldJewelleryRows(
+        ojData.map((o) => ({
+          _id:             Date.now() + Math.random(),
+          itemDescription: o.ItemDescription || "",
+          grossWeight:     o.GrossWeight      ? o.GrossWeight.toString()      : "",
+          metalType:       o.MetalType        || "GOLD",
+          touch:           o.Touch            ? o.Touch.toString()            : "",
+          deductionWeight: o.DeductionWeight  ? o.DeductionWeight.toString()  : "",
+          pureWeight:      o.PureWeight       ? o.PureWeight.toString()       : "",
+          metalRate:       o.MetalRate        ? o.MetalRate.toString()        : "",
+          amount:          o.Amount           ? o.Amount.toString()           : "",
+        }))
       );
 
       setEditId(purchaseId);
@@ -290,7 +439,7 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     DELETE  ✅ Are you sure added
+     DELETE
   ============================================================ */
   const handleDelete = async (purchaseId) => {
     const result = await Swal.fire({
@@ -328,7 +477,7 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     ACTIVATE / DEACTIVATE  ✅ NAYA — TypeId = 5
+     ACTIVATE / DEACTIVATE — TypeId = 5
   ============================================================ */
   const handleToggleActive = async (item) => {
     const isCurrentlyActive = item.IsActive;
@@ -352,7 +501,7 @@ const PurchaseMaster = () => {
       const res = await Purchase_Manage({
         TypeId:     5,
         PurchaseId: item.PurchaseId,
-        IsActive:   !isCurrentlyActive,   // Toggle
+        IsActive:   !isCurrentlyActive,
         CreatedBy:  createdBy,
       });
       const res0 = res?.data?.[0];
@@ -376,17 +525,19 @@ const PurchaseMaster = () => {
   };
 
   /* ============================================================
-     VIEW POPUP  ✅ NAYA — TypeId = 4 with PurchaseId
+     VIEW POPUP — TypeId = 4 with PurchaseId
   ============================================================ */
   const handleView = async (purchaseId) => {
     try {
       const res = await Purchase_Manage({ TypeId: 4, PurchaseId: purchaseId });
 
-      const hData = res?.data?.header?.[0];
-      const dData = res?.data?.details || [];
+      const hData  = res?.data?.header?.[0];
+      const dData  = res?.data?.details || [];
+      const ojData = res?.data?.oldJewellery || [];   // ✅ NAYA
 
       setViewHeader(hData);
       setViewDetails(dData);
+      setViewOldJewellery(ojData);
       setViewPopup(true);
     } catch (err) {
       console.error("View load error", err);
@@ -480,10 +631,15 @@ const PurchaseMaster = () => {
                     setHeader({ ...header, paidAmount: val });
                 }}
               />
+              {oldJewelleryRows.length > 0 && (
+                <p style={{ fontSize: "11px", color: "#6b7280", margin: "2px 0 0 0" }}>
+                  Old Jewellery (₹ {totalOldJewelleryAmount}) Total Amount me already add hai
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Row 3: IsActive | Remarks */}   {/* ✅ NAYA ROW */}
+          {/* Row 3: IsActive | Remarks */}
           <div className="form-row">
             <div className="form-group">
               <label>Is Active</label>
@@ -518,17 +674,18 @@ const PurchaseMaster = () => {
           <hr />
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1100px" }}>
               <thead>
                 <tr>
                   <th style={th}>#</th>
-                  <th style={th}>Product</th>
+                  <th style={{ ...th, minWidth: "180px" }}>Product</th>
                   <th style={th}>Qty</th>
                   <th style={th}>Gross Wt (gm)</th>
                   <th style={th}>Net Wt (gm)</th>
+                  <th style={{ ...th, minWidth: "110px" }}>Metal</th>
                   <th style={th}>Metal Rate (₹)</th>
                   <th style={th}>Making Charge</th>
-                  <th style={th}>Type</th>
+                  <th style={{ ...th, minWidth: "120px" }}>Type</th>
                   <th style={th}>Stone Charge (₹)</th>
                   <th style={th}>Amount (₹)</th>
                   <th style={th}>Action</th>
@@ -539,9 +696,9 @@ const PurchaseMaster = () => {
                   <tr key={row._id}>
                     <td style={td}>{index + 1}</td>
 
-                    <td style={td}>
+                    <td style={{ ...td, minWidth: "180px" }}>
                       <select
-                        style={inputStyle}
+                        style={selectStyle}
                         value={row.productId}
                         onChange={(e) =>
                           handleDetailChange(index, "productId", e.target.value)
@@ -599,9 +756,23 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.netWeight}</p>
                     </td>
 
+                    {/* Metal Type — Gold(10gm) / Silver(1kg) ✅ NAYA */}
+                    <td style={{ ...td, minWidth: "110px" }}>
+                      <select
+                        style={selectStyle}
+                        value={row.metalType}
+                        onChange={(e) => handleDetailChange(index, "metalType", e.target.value)}
+                      >
+                        <option value="GOLD">Gold (/10gm)</option>
+                        <option value="SILVER">Silver (/kg)</option>
+                      </select>
+                    </td>
+
                     <td style={td}>
                       <input
-                        style={inputStyle} placeholder="Metal Rate" value={row.metalRate}
+                        style={inputStyle}
+                        placeholder={row.metalType === "SILVER" ? "Rate /kg" : "Rate /10gm"}
+                        value={row.metalRate}
                         onChange={(e) => {
                           const val = e.target.value;
                           const result = commonInputValidator(val, {
@@ -627,9 +798,9 @@ const PurchaseMaster = () => {
                       <p style={errStyle}>{detailError[index]?.makingCharge}</p>
                     </td>
 
-                    <td style={td}>
+                    <td style={{ ...td, minWidth: "120px" }}>
                       <select
-                        style={inputStyle}
+                        style={selectStyle}
                         value={row.makingChargeType}
                         onChange={(e) =>
                           handleDetailChange(index, "makingChargeType", e.target.value)
@@ -676,26 +847,188 @@ const PurchaseMaster = () => {
 
               <tfoot>
                 <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Total Amount:</td>
-                  <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>₹ {totalAmount}</td>
-                  <td style={td}></td>
-                </tr>
-                <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Paid Amount:</td>
-                  <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
-                    ₹ {parseFloat(header.paidAmount || 0).toFixed(2)}
+                  <td colSpan={10} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                    Items Sub Total:
                   </td>
-                  <td style={td}></td>
-                </tr>
-                <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>Balance Due:</td>
-                  <td style={{ ...td, fontWeight: "bold", color: "#dc2626" }}>
-                    ₹ {(parseFloat(totalAmount) - parseFloat(header.paidAmount || 0)).toFixed(2)}
-                  </td>
+                  <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>₹ {totalDetailsAmount}</td>
                   <td style={td}></td>
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+
+        {/* ===================== OLD JEWELLERY SECTION ===================== ✅ NAYA */}
+        <div className="form-card" style={{ marginTop: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0 }}>Old Jewellery Purchase (Optional)</h3>
+            <button className="btn-primary" onClick={addOldJewelRow}>+ Add Old Jewellery</button>
+          </div>
+          <hr />
+
+          {oldJewelleryRows.length === 0 && (
+            <p style={{ color: "#6b7280", fontSize: "13px" }}>
+              Agar supplier se ya kisi se purani jewellery bhi purchase ki ja rahi hai
+              to "+ Add Old Jewellery" par click karein.
+            </p>
+          )}
+
+          {oldJewelleryRows.map((row, index) => (
+            <div
+              key={row._id}
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "16px",
+                marginBottom: "12px",
+                backgroundColor: "#fafafa",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <strong>Old Jewellery #{index + 1}</strong>
+                <button className="btn-danger-grid" onClick={() => removeOldJewelRow(index)}>
+                  Remove
+                </button>
+              </div>
+
+              <div style={oldJewelGrid}>
+                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                  <label>Item Description (Optional)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="e.g. Old Gold Chain"
+                    value={row.itemDescription}
+                    onChange={(e) => handleOldJewelChange(index, "itemDescription", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Gross Weight (gm)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Gross Wt"
+                    value={row.grossWeight}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 10,
+                      });
+                      if (result === true) handleOldJewelChange(index, "grossWeight", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.grossWeight}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Metal</label>
+                  <select
+                    style={selectStyle}
+                    value={row.metalType}
+                    onChange={(e) => handleOldJewelChange(index, "metalType", e.target.value)}
+                  >
+                    <option value="GOLD">Gold (/10gm)</option>
+                    <option value="SILVER">Silver (/kg)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Touch % (Optional)</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Optional"
+                    value={row.touch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 5,
+                      });
+                      if (result === true) handleOldJewelChange(index, "touch", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.touch}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Deduction Wt (gm)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
+                    placeholder="Auto" value={row.deductionWeight} readOnly
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Pure Weight (gm)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5" }}
+                    placeholder="Auto" value={row.pureWeight} readOnly
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Metal Rate (₹{row.metalType === "SILVER" ? "/kg" : "/10gm"})</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Rate"
+                    value={row.metalRate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const result = commonInputValidator(val, {
+                        numeric: true, allowDecimal: true, minLength: 1, maxLength: 10,
+                      });
+                      if (result === true) handleOldJewelChange(index, "metalRate", val);
+                    }}
+                  />
+                  <p style={errStyle}>{oldJewelleryError[index]?.metalRate}</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Amount (₹)</label>
+                  <input
+                    style={{ ...inputStyle, backgroundColor: "#f5f5f5", fontWeight: "bold" }}
+                    placeholder="Auto" value={row.amount} readOnly
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {oldJewelleryRows.length > 0 && (
+            <div style={{ textAlign: "right", fontWeight: "bold", color: "#16a34a", marginTop: "8px" }}>
+              Total Old Jewellery Amount: ₹ {totalOldJewelleryAmount}
+            </div>
+          )}
+        </div>
+
+        {/* ===================== GRAND TOTAL + SAVE/CANCEL ===================== */}
+        <div className="form-card" style={{ marginTop: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ width: "320px", fontSize: "14px" }}>
+              {oldJewelleryRows.length > 0 && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span>Items Sub Total:</span><strong>₹ {totalDetailsAmount}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span>+ Old Jewellery:</span><strong>₹ {totalOldJewelleryAmount}</strong>
+                  </div>
+                </>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderTop: "1px solid #e2e8f0", fontWeight: "bold" }}>
+                <span>Total Amount:</span><span style={{ color: "#2563eb" }}>₹ {totalAmount}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                <span>Paid Amount:</span>
+                <span style={{ color: "#16a34a", fontWeight: "bold" }}>
+                  ₹ {parseFloat(header.paidAmount || 0).toFixed(2)}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontWeight: "bold" }}>
+                <span>Balance Due:</span>
+                <span style={{ color: "#dc2626" }}>
+                  ₹ {(parseFloat(totalAmount) - parseFloat(header.paidAmount || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="btn-group" style={{ marginTop: "16px" }}>
@@ -707,7 +1040,8 @@ const PurchaseMaster = () => {
         {/* ===================== PURCHASE LIST ===================== */}
         <div className="table-card" style={{ marginTop: "16px" }}>
           <h3>Purchase List</h3>
-          <table>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ minWidth: "900px" }}>
             <thead>
               <tr>
                 <th>Sr No</th>
@@ -717,7 +1051,7 @@ const PurchaseMaster = () => {
                 <th>Total Amount</th>
                 <th>Paid Amount</th>
                 <th>Balance Due</th>
-                <th>Status</th>      {/* ✅ NAYA */}
+                <th>Status</th>
                 <th>Remarks</th>
                 <th>Action</th>
               </tr>
@@ -737,7 +1071,6 @@ const PurchaseMaster = () => {
                   <td>₹ {item.PaidAmount}</td>
                   <td>₹ {item.DueAmount}</td>
 
-                  {/* Status Badge */}   {/* ✅ NAYA */}
                   <td>
                     <span style={{
                       padding: "2px 10px",
@@ -752,8 +1085,7 @@ const PurchaseMaster = () => {
                   </td>
 
                   <td>{item.Remarks}</td>
-                  <td>
-                    {/* View Button */}   {/* ✅ NAYA */}
+                  <td style={{ whiteSpace: "nowrap" }}>
                     <button
                       className="btn-primary"
                       style={{ marginRight: "6px", padding: "4px 10px", fontSize: "12px" }}
@@ -770,7 +1102,6 @@ const PurchaseMaster = () => {
                       Edit
                     </button>
 
-                    {/* Active/Deactive Button */}   {/* ✅ NAYA */}
                     <button
                       style={{
                         marginRight: "6px",
@@ -799,9 +1130,10 @@ const PurchaseMaster = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
-        {/* ===================== VIEW POPUP ===================== */}   {/* ✅ NAYA */}
+        {/* ===================== VIEW POPUP ===================== */}
         {viewPopup && viewHeader && (
           <div style={overlayStyle}>
             <div style={popupStyle}>
@@ -851,6 +1183,7 @@ const PurchaseMaster = () => {
                       <th style={th}>Qty</th>
                       <th style={th}>Gross Wt</th>
                       <th style={th}>Net Wt</th>
+                      <th style={th}>Metal</th>
                       <th style={th}>Metal Rate</th>
                       <th style={th}>Making</th>
                       <th style={th}>Type</th>
@@ -866,6 +1199,7 @@ const PurchaseMaster = () => {
                         <td style={td}>{d.Quantity}</td>
                         <td style={td}>{d.GrossWeight}g</td>
                         <td style={td}>{d.NetWeight}g</td>
+                        <td style={td}>{d.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
                         <td style={td}>₹ {d.MetalRate}</td>
                         <td style={td}>{d.MakingCharge}</td>
                         <td style={td}>{d.MakingChargeType}</td>
@@ -876,6 +1210,55 @@ const PurchaseMaster = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Old Jewellery Table (agar koi entry hai) ✅ NAYA */}
+              {viewOldJewellery.length > 0 && (
+                <>
+                  <h4 style={{ marginTop: "20px", marginBottom: "8px" }}>Old Jewellery Purchase</h4>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr>
+                          <th style={th}>#</th>
+                          <th style={th}>Description</th>
+                          <th style={th}>Metal</th>
+                          <th style={th}>Gross Wt</th>
+                          <th style={th}>Touch %</th>
+                          <th style={th}>Deduction Wt</th>
+                          <th style={th}>Pure Wt</th>
+                          <th style={th}>Metal Rate</th>
+                          <th style={th}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewOldJewellery.map((o, i) => (
+                          <tr key={o.OldJewelDetailId}>
+                            <td style={td}>{i + 1}</td>
+                            <td style={td}>{o.ItemDescription || "-"}</td>
+                            <td style={td}>{o.MetalType === "SILVER" ? "Silver" : "Gold"}</td>
+                            <td style={td}>{o.GrossWeight}g</td>
+                            <td style={td}>{o.Touch ? `${o.Touch}%` : "-"}</td>
+                            <td style={td}>{o.DeductionWeight ? `${o.DeductionWeight}g` : "-"}</td>
+                            <td style={td}>{o.PureWeight ? `${o.PureWeight}g` : "-"}</td>
+                            <td style={td}>₹ {o.MetalRate}</td>
+                            <td style={td}>₹ {o.Amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={8} style={{ ...td, textAlign: "right", fontWeight: "bold" }}>
+                            Total Old Jewellery Amount:
+                          </td>
+                          <td style={{ ...td, fontWeight: "bold", color: "#16a34a" }}>
+                            ₹ {viewOldJewellery.reduce((s, o) => s + (parseFloat(o.Amount) || 0), 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
 
               {/* Close Button */}
               <div style={{ textAlign: "right", marginTop: "16px" }}>
@@ -904,9 +1287,21 @@ const inputStyle = {
   width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1",
   borderRadius: "4px", fontSize: "14px", boxSizing: "border-box",
 };
+const selectStyle = {
+  width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1",
+  borderRadius: "4px", fontSize: "14px", boxSizing: "border-box",
+  minHeight: "34px", backgroundColor: "#fff",
+};
 const errStyle  = { color: "red", fontSize: "11px", margin: "2px 0 0 0" };
 
-/* ✅ NAYA — Popup Styles */
+/* ✅ NAYA — Old Jewellery grid */
+const oldJewelGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "12px",
+  alignItems: "start",
+};
+
 const overlayStyle = {
   position:        "fixed",
   top:             0, left: 0,
@@ -917,14 +1312,15 @@ const overlayStyle = {
   alignItems:      "center",
   justifyContent:  "center",
   zIndex:          1000,
+  padding:         "16px",
 };
 const popupStyle = {
   backgroundColor: "#fff",
   borderRadius:    "8px",
   padding:         "24px",
-  width:           "90%",
-  maxWidth:        "900px",
-  maxHeight:       "85vh",
+  width:           "100%",
+  maxWidth:        "1000px",
+  maxHeight:       "90vh",
   overflowY:       "auto",
   boxShadow:       "0 20px 60px rgba(0,0,0,0.3)",
 };

@@ -306,9 +306,12 @@ debugger
                         <td colSpan="6" style={{ textAlign: "right", padding: "8px" }}>Total</td>
                         <td style={{ color: "green" }}>₹ {totalCR.toFixed(2)}</td>
                         <td style={{ color: "red"   }}>₹ {totalDR.toFixed(2)}</td>
-                        <td style={{ color: closingTotal < 0 ? "red" : "green" }}>
+                        {/* <td style={{ color: closingTotal < 0 ? "red" : "green" }}>
                           ₹ {closingTotal.toFixed(2)}
-                        </td>
+                        </td> */}
+                        <td style={{ color: (totalDR - totalCR) >= 0 ? "red" : "green" }}>
+  Bal ₹ {(totalDR - totalCR).toFixed(2)}
+</td>
                         <td></td>
                       </tr>
                     </tfoot>

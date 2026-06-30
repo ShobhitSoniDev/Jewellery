@@ -307,7 +307,7 @@ const ProductMaster = () => {
                 <option value="">-- Select Metal --</option>
                 {metalList.map((metal) => (
                   <option key={metal.MetalId} value={metal.MetalId}>
-                    {metal.MetalName}
+                    {metal.MetalDesc}
                   </option>
                 ))}
               </select>

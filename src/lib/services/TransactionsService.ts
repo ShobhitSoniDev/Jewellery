@@ -170,14 +170,17 @@ export interface CustomerLedger_ManagePayload {
 // =============================================
 // ADD THIS TO YOUR: @/lib/services/MasterService.ts
 // =============================================
-
 export type MakingChargeType = 'FLAT' | 'PERCENT';
+
+/* ✅ NAYA — Gold rate /10gm ke hisab se, Silver rate /kg (1000gm) ke hisab se */
+export type MetalType = 'GOLD' | 'SILVER';
 
 export interface PurchaseDetailItem {
   ProductId:        number;
   Quantity:         number;
   GrossWeight:      number;
   NetWeight:        number;
+  MetalType:        MetalType;         // ✅ NAYA — GOLD / SILVER
   MetalRate:        number;
   MakingCharge:     number;
   MakingChargeType: MakingChargeType;  // ✅ Strict type
@@ -185,18 +188,31 @@ export interface PurchaseDetailItem {
   Amount:           number;
 }
 
+/* ✅ NAYA — Old Jewellery purchase item (Sales Master ke OldJewellery jaisa) */
+export interface PurchaseOldJewelleryItem {
+  ItemDescription?: string | null;
+  GrossWeight:      number;
+  MetalType:        MetalType;         // GOLD / SILVER
+  Touch?:           number | null;     // Optional — diya ho to Deduction/Pure Weight se Amount nikalta hai
+  DeductionWeight?: number | null;     // auto-calc (jab Touch diya ho)
+  PureWeight?:      number | null;     // auto-calc (jab Touch diya ho)
+  MetalRate:        number;
+  Amount:           number;
+}
+
 export interface PurchasePayload {
   TypeId: number;
   PurchaseId?: number | null;
   PurchaseNo?: string;
-  PurchaseDate?: string;         // "YYYY-MM-DD"
+  PurchaseDate?: string;                  // "YYYY-MM-DD"
   SupplierId?: number | null;
-  TotalAmount?: number | null;
+  TotalAmount?: number | null;            // Items Sub Total + Old Jewellery Total
   PaidAmount?: number;
   Remarks?: string;
   IsActive?: boolean;
   CreatedBy?: string;
-  DetailsJson?: string;          // JSON.stringify(PurchaseDetailItem[])
+  DetailsJson?: string;                   // JSON.stringify(PurchaseDetailItem[])
+  OldJewelleryJson?: string | null;        // ✅ NAYA — JSON.stringify(PurchaseOldJewelleryItem[])
 }
 
 export const Purchase_Manage = async (payload: PurchasePayload) => {
@@ -231,11 +247,17 @@ export type PaymentMode = "CASH" | "CARD" | "UPI" | "CHEQUE" | "MIXED";
 /* ------------------------------------------------------------------ */
 /* New Jewellery (Sale Details) row                                    */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/* Metal Type — GOLD rate is per 10gm, SILVER rate is per 1kg          */
+/* ------------------------------------------------------------------ */
+export type MetalType = "GOLD" | "SILVER";
+
 export interface SalesDetailItem {
   ProductId:        number;
   Quantity:         number;
   GrossWeight:      number;
   NetWeight:        number;
+  MetalType:        MetalType;        // ✅ NEW — GOLD (/10gm) or SILVER (/kg)
   Touch:            number | null;   // Optional — Wholesale required, Retail optional
   PureWeight:       number | null;   // Auto-calc = NetWeight * Touch / 100 (only when Touch present)
   MetalRate:        number;
@@ -245,7 +267,7 @@ export interface SalesDetailItem {
   GSTRate:          number;
   Amount:           number;
 }
- 
+
 /* ------------------------------------------------------------------ */
 /* Old Jewellery Exchange row                                          */
 /* ------------------------------------------------------------------ */
@@ -253,13 +275,14 @@ export interface OldJewelleryItem {
   EntryType:        CustomerType;     // header ke CustomerType se aata hai
   ItemDescription:  string | null;
   GrossWeight:      number;
+  MetalType:        MetalType;        // ✅ NEW — GOLD (/10gm) or SILVER (/kg)
   Touch:            number | null;
   DeductionWeight:  number | null;    // Auto-calc = GrossWeight * (100 - Touch) / 100
   PureWeight:       number | null;    // Auto-calc = GrossWeight - DeductionWeight
   MetalRate:        number;
   Amount:           number;
 }
- 
+
 /* ------------------------------------------------------------------ */
 /* Sales Payload — sent to Sales_Manage service                        */
 /* TypeId: 1 = Insert, 2 = Update, 3 = Delete, 4 = Get/List, 5 = Toggle */

@@ -222,15 +222,22 @@ const ProductMaster = () => {
       const payload = { ProductId, CreatedBy: createdBy, TypeId: 4 };
       const response = await ProductMaster_Manage(payload);
 
-      await Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        text: response?.data?.[0]?.Message || "Deleted successfully",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-
-      loadProductList();
+      if (response && response.data && response.data[0] && response.data[0].Code === 1) {
+                  await Swal.fire({
+                    icon: "success",
+                    title: "Saved!",
+                    text: response.data[0].Message || "Saved successfully",
+                  });
+               loadProductList();
+                  resetForm();
+          
+                } else {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: response?.data?.[0]?.Message || "Save failed",
+                  });
+                }
     } catch (err) {
       console.error(err);
       Swal.fire({ icon: "error", title: "Error", text: "Delete failed" });

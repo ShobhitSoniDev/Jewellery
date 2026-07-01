@@ -72,12 +72,7 @@ const SupplierMaster = () => {
     try {
       const response = await SupplierMaster_Manage(payload);
 
-      if (
-        response &&
-        response.data &&
-        response.data[0] &&
-        response.data[0].Message
-      ) {
+      if (response && response.data && response.data[0] && response.data[0].Code === 1) {
         await Swal.fire({
           icon: "success",
           title: "Saved!",
@@ -177,16 +172,26 @@ const SupplierMaster = () => {
         TypeId: 3, // Delete
       };
 
-      await SupplierMaster_Manage(payload);
+      var response=await SupplierMaster_Manage(payload);
 
-      await Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        timer: 1200,
-        showConfirmButton: false,
-      });
+          if (response && response.data && response.data[0] && response.data[0].Code === 1) {
+                        await Swal.fire({
+                          icon: "success",
+                          title: "Saved!",
+                          text: response.data[0].Message || "Saved successfully",
+                        });
+                      loadSupplierList();
+                        resetForm();
+                
+                      } else {
+                        Swal.fire({
+                          icon: "error",
+                          title: "Error",
+                          text: response?.data?.[0]?.Message || "Save failed",
+                        });
+                      }
 
-      loadSupplierList();
+     
     } catch (err) {
       console.error(err);
       Swal.fire({

@@ -204,16 +204,27 @@ debugger
         typeId: 3,
       };
 
-      await CustomerMaster_Manage(payload);
+     const response= await CustomerMaster_Manage(payload);
 
-      await Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        timer: 1200,
-        showConfirmButton: false,
-      });
+      if (response && response.data && response.data[0] && response.data[0].Code === 1) {
 
-      loadCustomerList();
+        await Swal.fire({
+          icon: "success",
+          title: "Saved!",
+          text: response.data[0].Message || "Saved successfully",
+        });
+
+        loadCustomerList();
+        resetForm();
+
+      } else {
+
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: response?.data?.[0]?.Message || "Save failed",
+        });
+      }
 
     } catch (err) {
 

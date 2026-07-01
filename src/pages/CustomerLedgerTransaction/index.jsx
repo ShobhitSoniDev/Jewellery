@@ -196,11 +196,11 @@ const CustomerLedger = () => {
     try {
       const response = await CustomerLedger_Manage({ TransId: transId, TypeId: 3 });
       if (response?.data?.[0]?.Code === 1) {
-        Swal.fire({ icon: "success", title: "Deleted!", text: "Entry deleted successfully.", confirmButtonColor: "#3085d6" });
+        Swal.fire({ icon: "success", title: "Deleted!", text:response?.data?.[0]?.Message, confirmButtonColor: "#3085d6" });
         loadLedgerList(CustomerCode);
         loadBalanceAmount(CustomerCode);
       } else {
-        Swal.fire({ icon: "error", title: "Error!", text: "Failed to delete entry", confirmButtonColor: "#3085d6" });
+        Swal.fire({ icon: "error", title: "Error!", text: response?.data?.[0]?.Message, confirmButtonColor: "#3085d6" });
       }
     } catch (error) {
       Swal.fire({ icon: "error", title: "Error!", text: "Something went wrong", confirmButtonColor: "#3085d6" });

@@ -406,12 +406,21 @@ export default function LoanTransaction() {
         TypeId: "3", // Delete
       });
 
-      if (response?.code === 1) {
-        Swal.fire("Deleted!", "Transaction deleted successfully.", "success");
-        await loadLoanOutstanding(selectedLoan);
-      } else {
-        Swal.fire("Error", response?.message || "Delete failed", "error");
-      }
+      if (response && response.data && response.data[0] && response.data[0].Code === 1) {
+                              await Swal.fire({
+                                icon: "success",
+                                title: "Saved!",
+                                text: response.data[0].Message || "Saved successfully",
+                              });
+                            await loadLoanOutstanding(selectedLoan);
+                      
+                            } else {
+                              Swal.fire({
+                                icon: "error",
+                                title: "Error",
+                                text: response?.data?.[0]?.Message || "Save failed",
+                              });
+                            }
     } catch (error) {
       console.error(error);
       Swal.fire("Error", "Something went wrong", "error");

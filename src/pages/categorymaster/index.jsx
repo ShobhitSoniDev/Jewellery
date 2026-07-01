@@ -217,16 +217,25 @@ useEffect(() => {
     };
 
     const response = await CategoryMaster_Manage(payload);
+          if (response && response.data && response.data[0] && response.data[0].Code === 1) {
+    
+            await Swal.fire({
+              icon: "success",
+              title: "Saved!",
+              text: response.data[0].Message || "Saved successfully",
+            });
+        loadCategoryList();
+            resetForm();
+    
+          } else {
+    
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: response?.data?.[0]?.Message || "Save failed",
+            });
+          }
 
-    await Swal.fire({
-      icon: "success",
-      title: "Deleted!",
-      text: response?.data?.[0]?.Message || "Deleted successfully",
-      timer: 1500,
-      showConfirmButton: false
-    });
-
-    loadCategoryList();
 
   } catch (error) {
     console.error(error);

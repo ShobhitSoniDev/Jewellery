@@ -34,6 +34,9 @@ export const API_ENDPOINTS = {
   LoanOutstandingCalculate_URL: "/reports/LoanOutstandingCalculate",
    CustomerLedgerReport_URL: "/reports/CustomerLedgerReport",
    CustomerBillGenerate_URL: "/reports/CustomerBillGenerate",
+   GetPurchaseReport_URL: "/reports/GetPurchaseReport",
+   GetSaleReport_URL: "/reports/GetSaleReport",
+    GetStock_Report_URL: "/reports/GetStock_Report",
   }
   ,
   AI: {

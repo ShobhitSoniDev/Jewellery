@@ -100,7 +100,7 @@ useEffect(() => {
   <input
     type="text"
     placeholder="Shop Code"
-    value={shopCode}
+    value={shopCode.toUpperCase()}
     onChange={(e) => setShopCode(e.target.value)}
     disabled={isShopCodeFromUrl}
   />
@@ -136,12 +136,12 @@ useEffect(() => {
           {error && <p className="authError">{error}</p>}
         </form>
 
-        <p className="authSwitchText">
+        {/* <p className="authSwitchText">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="authLink">
             Sign Up
           </Link>
-        </p>
+        </p> */}
       </main>
     </div>
   );

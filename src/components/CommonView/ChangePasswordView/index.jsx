@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/router";
 import { ChangePassword_Manage } from "@/lib/services/MasterService";
 
 // ── Color tokens matched from screenshot ───────────────────────────────────────
@@ -57,7 +58,7 @@ const ChangePasswordModal = ({ open, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [apiError, setApiError] = useState(""); // global API error message
-
+  const router = useRouter();
   if (!open) return null;
 
   // ── Password strength ──────────────────────────────────────────────────────
@@ -126,59 +127,70 @@ const ChangePasswordModal = ({ open, onClose }) => {
 
   // ── API Call ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!validate()) return;
+  if (!validate()) return;
 
-    setIsLoading(true);
-    setApiError("");
+  setIsLoading(true);
+  setApiError("");
 
-    try {
-      // ChangePassword_Manage ko payload bhejo
-      // Apne service function ke hisaab se payload adjust karein
-      const payload = {
-        currentPassword: form.currentPassword,
-        newPassword:     form.newPassword,
-      };
+  try {
+    const payload = {
+      currentPassword: form.currentPassword,
+      newPassword: form.newPassword,
+    };
 
-      const response = await ChangePassword_Manage(payload);
+    const response = await ChangePassword_Manage(payload);
 
-      // ── Success handle ─────────────────────────────────────────────────
-      // Agar aapki service ne { success: true } ya { status: 200 } return kiya
-      if (response?.success || response?.status === 200 || response?.data) {
-        setIsSuccess(true);
-        setTimeout(() => handleClose(), 1800);
-      } else {
-        // Service ne error message return kiya (but throw nahi kiya)
-        const msg =
-          response?.message ||
-          response?.error ||
-          "Something went wrong. Please try again.";
-        setApiError(msg);
-      }
-    } catch (error) {
-      // Network error ya server 4xx/5xx
-      const msg =
-        error?.response?.data?.message ||   // axios error
-        error?.message ||                    // fetch / generic
-        "Failed to update password. Please try again.";
+    if (response?.code === 1) {
+  setIsSuccess(true);
 
-      // Agar current password galat hai to field pe dikhao
-      if (
-        msg.toLowerCase().includes("current") ||
-        msg.toLowerCase().includes("incorrect") ||
-        msg.toLowerCase().includes("wrong") ||
-        error?.response?.status === 401
-      ) {
-        setErrors((prev) => ({
-          ...prev,
-          currentPassword: "Incorrect current password. Please try again.",
-        }));
-      } else {
-        setApiError(msg);
-      }
-    } finally {
-      setIsLoading(false);
+  const shopCode = localStorage.getItem("shopCode");
+
+  setTimeout(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+
+    if (
+      shopCode &&
+      shopCode.trim() !== "" &&
+      shopCode !== "undefined" &&
+      shopCode !== "null"
+    ) {
+      router.push(`/login?SC=${encodeURIComponent(shopCode)}`);
+    } else {
+      router.push("/login");
     }
-  };
+  }, 3000); // 3 seconds
+} else {
+      const msg =
+        response?.message ||
+        response?.error ||
+        "Something went wrong. Please try again.";
+
+      setApiError(msg);
+    }
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to update password. Please try again.";
+
+    if (
+      msg.toLowerCase().includes("current") ||
+      msg.toLowerCase().includes("incorrect") ||
+      msg.toLowerCase().includes("wrong") ||
+      error?.response?.status === 401
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        currentPassword: "Incorrect current password. Please try again.",
+      }));
+    } else {
+      setApiError(msg);
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleClose = () => {
     setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });

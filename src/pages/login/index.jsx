@@ -1,6 +1,6 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { FaGem, FaLock, FaUser } from "react-icons/fa";
+import { FaGem, FaLock, FaUser,FaEye, FaEyeSlash } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { LoginUser } from "@/lib/services/AuthService";
 
@@ -11,51 +11,45 @@ const Login = () => {
   const [error, setError] = useState("");
 const [shopCode, setShopCode] = useState("");
 const [isShopCodeFromUrl, setIsShopCodeFromUrl] = useState(false);
+const [isLoading, setIsLoading] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
 const handleLogin = async (event) => {
   event.preventDefault();
+
+  if (isLoading) return;
+
+  setIsLoading(true);
   setError("");
 
-  if (!shopCode?.trim()) {
-    setError("Shop Code is required");
-    return;
-  }
-
-  if (!email?.trim()) {
-    setError("Username is required");
-    return;
-  }
-
-  if (!password?.trim()) {
-    setError("Password is required");
-    return;
-  }
-
-  const payload = {
-    shopCode,
-    username: email,
-    password,
-  };
-
   try {
-    const response = await LoginUser(payload);
-
-    if (response.code === 1) {
+    const response = await LoginUser({
+      shopCode,
+      username: email,
+      password,
+    });
+debugger
+    if (Number(response?.code) === 1) {
       sessionStorage.setItem("token", response.data.token);
       localStorage.setItem("userName", response.data.UserName);
       localStorage.setItem("shopCode", response.data.shopCode);
       localStorage.setItem("ShopName", response.data.ShopName);
       localStorage.setItem("TagLine", response.data.TagLine);
 
-      router.push("/dashboard");
-    } else {
-      setError(response.message || "Login failed");
+      router.replace("/dashboard");
+      return;
     }
 
-    setEmail("");
-    setPassword("");
-  } catch (error) {
-    console.error("Login Error:", error);
-    setError(error.message || "Something went wrong");
+    setError(response?.message || "Login failed");
+
+    router.replace(
+      shopCode
+        ? `/login?SC=${encodeURIComponent(shopCode)}`
+        : "/login"
+    );
+  } catch (err) {
+    setError(err?.message || "Something went wrong");
+  } finally {
+    setIsLoading(false);
   }
 };
 useEffect(() => {
@@ -117,12 +111,29 @@ useEffect(() => {
 
           <div className="authInputGroup">
             <FaLock />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+           <div style={{ position: "relative" }}>
+  <input
+    type={showPassword ? "text" : "password"}
+    placeholder="Password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    style={{ paddingRight: "40px" }}
+  />
+
+  <span
+    onClick={() => setShowPassword(!showPassword)}
+    style={{
+      position: "absolute",
+      right: "12px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "pointer",
+      color: "#666",
+    }}
+  >
+    {showPassword ? <FaEyeSlash /> : <FaEye />}
+  </span>
+</div>
           </div>
 
           <div className="authForgot">

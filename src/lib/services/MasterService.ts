@@ -376,3 +376,42 @@ export const SupplierMaster_Manage = async (payload: SupplierMasterPayload) => {
     throw error;
   }
 };
+
+
+export interface ShopMasterPayload {
+  ShopId?: number | null;
+  ShopCode?: string;
+  ShopName?: string;
+  TagLine?: string;
+  OwnerName?: string;
+  MobileNo?: string;
+  Email?: string;
+  Address?: string;
+  GSTNo?: string;
+  Logo?: string;
+  IsActive?: boolean;
+  TypeId: number;
+}
+
+export const ShopMaster_Manage = async (payload: ShopMasterPayload) => {
+  try {
+    const token = sessionStorage.getItem("token");
+
+    const response = await api.post(
+      API_ENDPOINTS.Master.ShopMaster_Manage_URL, // Add this endpoint to your API_ENDPOINTS config
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};

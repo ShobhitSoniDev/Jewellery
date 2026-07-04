@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
     ChangePassword_Manage_URL: "/master/ChangePassword_Manage",
     User_Manage_URL: "/master/User_Manage",
     SupplierMaster_Manage_URL: "/master/SupplierMaster_Manage",
+    ShopMaster_Manage_URL: "/master/ShopMaster_Manage",
   },
   Transactions: {
     StockTransaction_Manage_URL: "/transactions/StockTransaction_Manage",

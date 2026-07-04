@@ -20,7 +20,7 @@ import {
   FaKey,
 } from "react-icons/fa";
 import { LogoutUser } from "@/lib/services/AuthService";
-import { getMenu } from "@/lib/services/MasterService";
+import { getMenu,ShopMaster_Manage } from "@/lib/services/MasterService";
 import Chatbot from "@/components/Chatbot";
 
 export default function DashboardLayout({ children }) {
@@ -40,6 +40,7 @@ export default function DashboardLayout({ children }) {
   const [open, setOpen] = useState(false);
   const [openchangepass, setOpenchangepass] = useState(false);
   const menuRef = useRef(null);
+  const [shopLogo, setShopLogo] = useState("");
 
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -50,10 +51,12 @@ export default function DashboardLayout({ children }) {
   const recognitionRef = useRef(null);
   const [shopName, setShopName] = useState("");
 const [tagLine, setTagLine] = useState("");
-useEffect(() => {
-  setShopName(localStorage.getItem("ShopName") || "");
-  setTagLine(localStorage.getItem("TagLine") || "");
-}, []);
+  useEffect(() => {
+    // Show cached values instantly, then refresh from API below
+    setShopName(localStorage.getItem("ShopName") || "");
+    setTagLine(localStorage.getItem("TagLine") || "");
+    setShopLogo(localStorage.getItem("ShopLogo") || "");
+  }, []);
 
   const loadMenuItems = async () => {
     try {
@@ -65,13 +68,32 @@ useEffect(() => {
       console.error("Error loading menu items:", error);
     }
   };
+  const loadShopProfile = async () => {
+    try {
+      const payload = { TypeId: 1, ShopId: 0 };
+      const response = await ShopMaster_Manage(payload);
+      const shop = response?.data?.[0];
 
+      if (shop) {
+        setShopName(shop.ShopName || "");
+        setTagLine(shop.TagLine || "");
+        setShopLogo(shop.Logo || "");
+
+        localStorage.setItem("ShopName", shop.ShopName || "");
+        localStorage.setItem("TagLine", shop.TagLine || "");
+        localStorage.setItem("ShopLogo", shop.Logo || "");
+        
+      }
+    } catch (error) {
+      console.error("Error loading shop profile:", error);
+    }
+  };
   useEffect(() => {
     const name = localStorage.getItem("userName");
     if (name) setUserName(name);
 
     loadMenuItems();
-
+    loadShopProfile();
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpen(false);
@@ -315,13 +337,17 @@ const shopCode = localStorage.getItem("shopCode");
       <aside className="sidebar">
         <div className="sidebarTop">
           <Link href="/dashboard" className="logo" onClick={closeMobileMenu}>
-            <span className="logoMark">
-              <FaGem />
-            </span>
-            <span>
-              <strong>{shopName || "Jewellery Stock"}</strong>
-<small>{tagLine || "Inventory & Girvi"}</small>
-            </span>
+            <div
+  className="logoContainer"
+  style={{
+    backgroundImage: `url(${shopLogo})`,
+    backgroundRepeat: "no-repeat",
+    //backgroundPosition: "center",
+    width: "300px",   // apne hisab se
+    height: "100px",   // apne hisab se
+  }}
+>
+</div>
           </Link>
 
           <button className="sidebarClose" onClick={() => setMenuOpen(false)} aria-label="Close sidebar">
@@ -408,7 +434,7 @@ const shopCode = localStorage.getItem("shopCode");
 
             {open && (
               <div className="profileDropdown">
-                <button onClick={() => router.push("/profile")} type="button">
+                <button onClick={() => router.push("/Profile")} type="button">
                   <FaUserCircle />
                   Profile
                 </button>

@@ -7,6 +7,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  output: "export",
+
+  images: {
+    unoptimized: true,
+  },
+
   async redirects() {
     return [
       {

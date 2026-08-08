@@ -9,18 +9,24 @@ import Swal from "sweetalert2";
 // ─── Format Sample Data (right side preview ke liye) ─────────────────────────
 const FORMAT_SAMPLES = {
   format1: `23-Jun-2026
-Silver Payal = 1000 gm = 25000
+Silver Payal = 100 gm = 25000
 Gold Ring = 2 gm = 30000
 Old/Purani Jewellery
 Purani Payal = 50 gm = 10000`,
 
   format2: `Date: 23-Jun-2026
 Sale / New:
-Silver Payal | 1000 gm | 25000
+Silver Payal | 100 gm | 25000
 Gold Ring | 2 gm | 30000
 Old:
 Purani Payal | 50 gm | 10000`,
 };
+
+const currentDate = new Date().toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+}).replace(/ /g, "-");
 
 const BillGenerate = () => {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -302,7 +308,11 @@ const BillGenerate = () => {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={`23-Jun-2026\nSilver Payal = 1000 gm = 25000\nGold Ring = 2 gm = 30000\nOld/Purani Jewellery\nPurani Payal = 50 gm = 10000`}
+                placeholder={`${currentDate}
+Silver Payal = 100 gm = 25000
+Gold Ring = 2 gm = 30000
+Old/Purani Jewellery
+Purani Payal = 50 gm = 10000`}
                 style={{
                   width: "100%",
                   minHeight: "260px",
@@ -383,8 +393,8 @@ const BillGenerate = () => {
               >
                 {/* Date line */}
                 <span style={{ color: "#185FA5", fontWeight: "700" }}>
-                  {activeFormat === "format1" ? "23-Jun-2026" : "Date: 23-Jun-2026"}
-                </span>
+  {activeFormat === "format1" ? currentDate : `Date: ${currentDate}`}
+</span>
                 {"\n"}
 
                 {/* New section header */}
@@ -400,7 +410,7 @@ const BillGenerate = () => {
                   <>
                     <span>Silver Payal </span>
                     <span style={{ color: "#B8860B" }}>=</span>
-                    <span> 1000 gm </span>
+                    <span> 100 gm </span>
                     <span style={{ color: "#B8860B" }}>=</span>
                     <span> 25000</span>
                     {"\n"}
@@ -415,7 +425,7 @@ const BillGenerate = () => {
                   <>
                     <span>Silver Payal </span>
                     <span style={{ color: "#B8860B" }}>|</span>
-                    <span> 1000 gm </span>
+                    <span> 100 gm </span>
                     <span style={{ color: "#B8860B" }}>|</span>
                     <span> 25000</span>
                     {"\n"}

@@ -1618,9 +1618,10 @@ const SalesMaster = () => {
               <div id="print-bill-area" style={{ padding: "12px", background: "#fff" }}>
                 <div style={{ textAlign: "center", marginBottom: "16px" }}>
                   <h2 style={{ margin: "0 0 4px 0" }}>Sales Invoice</h2>
-                  <div style={{ fontSize: "13px", color: "#6b7280" }}>
-                    {printData.header.CustomerType === "HOLESALE" ? "Wholesale (थोक)" : "Retail (फुटकर)"} Bill
-                  </div>
+                  <h2>
+                    {localStorage.getItem("ShopName")}
+                    {/* {printData.header.CustomerType === "HOLESALE" ? "Wholesale (थोक)" : "Retail (फुटकर)"} Bill */}
+                  </h2>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "14px", marginBottom: "16px", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px" }}>

@@ -18,6 +18,23 @@ import {
   FaTimes,
   FaUserCircle,
   FaKey,
+
+
+  FaTags,
+  FaTruck,
+  FaShoppingCart,
+  FaCashRegister,
+  FaUsers,
+  FaHandHoldingUsd,
+  FaFileInvoiceDollar,
+  FaWallet,
+  FaFileAlt,
+  FaFileInvoice,
+  FaUserShield,
+  FaUserCog,
+  FaClipboardList,
+  FaChartLine,
+  FaWarehouse
 } from "react-icons/fa";
 import { LogoutUser } from "@/lib/services/AuthService";
 import { getMenu,ShopMaster_Manage } from "@/lib/services/MasterService";
@@ -32,6 +49,21 @@ export default function DashboardLayout({ children }) {
     FaBoxes,
     FaBox,
     FaExchangeAlt,
+    FaTags,
+  FaTruck,
+  FaShoppingCart,
+  FaCashRegister,
+  FaUsers,
+  FaHandHoldingUsd,
+  FaFileInvoiceDollar,
+  FaWallet,
+  FaFileAlt,
+  FaFileInvoice,
+  FaUserShield,
+  FaUserCog,
+  FaClipboardList,
+  FaChartLine,
+  FaWarehouse
   };
 
   const [userName, setUserName] = useState("");

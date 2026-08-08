@@ -33,6 +33,7 @@ const ShopProfile = () => {
       const shop = response?.data?.[0];
 
       if (shop) {
+        debugger
         setShopId(shop.ShopId);
         setShopCode(shop.ShopCode || "");
         setShopName(shop.ShopName || "");

@@ -46,3 +46,44 @@ export const SignUp = async (payload: SignUpPayload) => {
   return { code: 0, message: "SignUp failed" };
 }
 };
+
+
+export interface LoginCustomerPayload {
+  shopCode: string;
+  mobile: string;
+  password: string;
+}
+
+export const LoginCustomerUser = async (payload: LoginCustomerPayload) => {
+  try {
+  const response = await api.post(API_ENDPOINTS.AUTH.LOGINCustomer_URL, payload);
+  console.log("Response received:", response.data);
+  return response.data;
+} catch (error: any) {
+  console.error("Login API error:", error);
+  return { code: 0, message: "Login failed" };
+}
+
+};
+
+
+
+export interface SignUpCustomerPayload {
+  userName: string;
+  email: string;
+  password: string;
+  oldPassword?: string;
+  mobileNo?: string;
+  type?: number;
+}
+
+export const SignUpCustomer = async (payload: SignUpCustomerPayload) => {
+     try {
+  const response = await api.post(API_ENDPOINTS.AUTH.SignUpCustomer_URL, payload);
+  console.log("Response received:", response.data);
+  return response.data;
+} catch (error: any) {
+  console.error("SignUp API error:", error);
+  return { code: 0, message: "SignUp failed" };
+}
+};

@@ -3,6 +3,8 @@ export const API_ENDPOINTS = {
     LOGIN: "/auth/login",
     LOGOUT: "/auth/logout",
     SignUp_URL: "/auth/signup",
+    LOGINCustomer_URL: "/auth/loginCustomer",
+    SignUpCustomer_URL: "/auth/signupCustomer",
   },
   Master: {
     GetMenu_URL: "/master/GetMenu",

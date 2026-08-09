@@ -6,7 +6,10 @@ import "../styles/layout.css";
 import "../styles/metalmaster.css";
 import "../styles/productmaster.css";
 import "../styles/LoanTransaction.css";
+import "../styles/Customer/login.css";
+import "../styles/Customer/layout.css";
 import Layout from '@/pages/layout'
+import LayoutCustomer from '@/pages/Customer/layout'
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
@@ -14,7 +17,7 @@ export default function App({ Component, pageProps }) {
   const router = useRouter();
 
   // ❌ Layout Not Required Pages
-  const noLayoutPages = ["/login", "/signup"];
+  const noLayoutPages = ["/login", "/signup", "/Customer/login", "/Customer/dashboard"];
 
    // 🔐 App start hote hi login par redirect
   useEffect(() => {

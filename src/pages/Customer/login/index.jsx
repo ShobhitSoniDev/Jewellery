@@ -11,8 +11,8 @@ import {
 } from "react-icons/fa";
 import { useRouter } from "next/router";
 import {
-  CustomerLoginUser,
-  CustomerSignup,
+  LoginCustomerUser,
+  SignUpCustomer,
   CustomerSendOtp,
   CustomerResetPassword,
 } from "@/lib/services/AuthService";
@@ -177,12 +177,12 @@ const CustomerLogin = () => {
     setError("");
 
     try {
-      const response = await CustomerLoginUser({ shopCode, mobile, password });
-
+      const response = await LoginCustomerUser({ shopCode, mobile, password });
+debugger
       if (Number(response?.code) === 1) {
-        sessionStorage.setItem("customerToken", response.data.token);
-        localStorage.setItem("customerName", response.data.CustomerName || "");
-        localStorage.setItem("customerId", response.data.CustomerId || "");
+        sessionStorage.setItem("token", response.data.token);
+        localStorage.setItem("customerName", response.data.UserName || "");
+        localStorage.setItem("customerId", response.data.UserId || "");
         localStorage.setItem("shopCode", response.data.shopCode || shopCode);
         localStorage.setItem("ShopName", response.data.ShopName || "");
 
@@ -217,11 +217,12 @@ const CustomerLogin = () => {
     setError("");
 
     try {
-      const response = await CustomerSignup({
+      const response = await SignUpCustomer({
         shopCode,
-        name: signupName,
-        mobile: signupMobile,
+        UserName: signupName,
+        MobileNo: signupMobile,
         password: signupPassword,
+        type:1
       });
 
       if (Number(response?.code) === 1) {

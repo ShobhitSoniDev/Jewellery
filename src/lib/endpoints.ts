@@ -40,6 +40,15 @@ export const API_ENDPOINTS = {
    GetPurchaseReport_URL: "/reports/GetPurchaseReport",
    GetSaleReport_URL: "/reports/GetSaleReport",
     GetStock_Report_URL: "/reports/GetStock_Report",
+  },
+  Customer: {
+  OnlineProduct_Manage_URL: "/Customer/Online_Product_Manage",
+  ProductImages_Manage_URL: "/Customer/Product_Images_Manage",
+  GetProduct_Master_URL: "/Product/GetProduct_Master",
+  GetOnline_ProductList_URL:"/Customer/GetOnline_ProductList",
+  GetOnline_ProductByProductId_URL: "/Customer/GetOnline_ProductByProductId",
+  Customer_Cart_Manage_URL: "/Customer/Customer_Cart_Manage",
+  Customer_Wishlist_Manage_URL: "/Customer/Customer_Wishlist_Manage",
   }
   ,
   AI: {

@@ -22,7 +22,7 @@ const OnlineProductFullDetail = () => {
   // ROUTE CONFIG
   // ============================================================
 
-  const PRODUCT_LIST_ROUTE = "/OnlineProductDetails";
+  const PRODUCT_LIST_ROUTE = "OnlineProductDetails";
 
   // ============================================================
   // STATE
@@ -43,16 +43,6 @@ const OnlineProductFullDetail = () => {
   const [activeTab, setActiveTab] = useState("description");
 
 
-  // ============================================================
-  // HELPER: Get logged-in CustomerId
-  // ============================================================
-
-  const getCustomerId = () => {
-debugger
-    const id = 1;
-
-    return id ? Number(id) : null;
-  };
 
 
   // ============================================================
@@ -133,20 +123,16 @@ debugger
 
   const checkExistingCartAndWishlist = async () => {
 
-    const customerId = getCustomerId();
-
-    if (!customerId || !productId) return;
 
     try {
 
       const cartRes = await Customer_Cart_Manage({
         TypeId: 2,
-        CustomerId: customerId,
       });
 
-      if (cartRes?.Code === 1 && Array.isArray(cartRes?.Data)) {
+      if (cartRes?.code === 1 && Array.isArray(cartRes?.data)) {
 
-        const existingItem = cartRes.Data.find(
+        const existingItem = cartRes.data.find(
           (item) => item.ProductId === Number(productId)
         );
 
@@ -170,12 +156,11 @@ debugger
 
       const wishlistRes = await Customer_Wishlist_Manage({
         TypeId: 2,
-        CustomerId: customerId,
       });
 
-      if (wishlistRes?.Code === 1 && Array.isArray(wishlistRes?.Data)) {
+      if (wishlistRes?.code === 1 && Array.isArray(wishlistRes?.data)) {
 
-        const existsInWishlist = wishlistRes.Data.some(
+        const existsInWishlist = wishlistRes.data.some(
           (item) => item.ProductId === Number(productId)
         );
 
@@ -209,20 +194,6 @@ debugger
 
     if (wishlistLoading) return;
 
-    const customerId = getCustomerId();
-
-    if (!customerId) {
-
-      Swal.fire({
-        icon: "warning",
-        title: "Login Required",
-        text: "Please login to add items to wishlist.",
-      });
-
-      router.push("/Customer/login");
-
-      return;
-    }
 
     try {
 
@@ -230,13 +201,12 @@ debugger
 
       const res = await Customer_Wishlist_Manage({
         TypeId: 1,
-        CustomerId: customerId,
         ProductId: Number(productId),
       });
 
-      if (res?.Code === 1) {
+      if (res?.code === 1) {
 
-        setIsWishlisted(res.Data?.IsAdded);
+        setIsWishlisted(res.data?.IsAdded);
 
         Swal.fire({
           icon: "success",
@@ -282,20 +252,7 @@ debugger
 
     if (cartLoading) return;
 
-    const customerId = getCustomerId();
 
-    if (!customerId) {
-
-      Swal.fire({
-        icon: "warning",
-        title: "Login Required",
-        text: "Please login to add items to cart.",
-      });
-
-      router.push("/Customer/login");
-
-      return;
-    }
 
     if (product?.TotalQuantity <= 0) {
 
@@ -316,7 +273,6 @@ debugger
 
       const res = await Customer_Cart_Manage({
         TypeId: 1,
-        CustomerId: customerId,
         ProductId: Number(productId),
         Quantity: quantity,
       });
@@ -366,9 +322,6 @@ debugger
 
   const handleRemoveFromCart = async () => {
 
-    const customerId = getCustomerId();
-
-    if (!customerId) return;
 
     try {
 
@@ -376,12 +329,11 @@ debugger
 
       const res = await Customer_Cart_Manage({
         TypeId: 1,
-        CustomerId: customerId,
         ProductId: Number(productId),
         Quantity: 0,
       });
 
-      if (res?.Code === 1) {
+      if (res?.code === 1) {
 
         setCartQuantity(0);
         setQuantity(1);
@@ -420,21 +372,6 @@ debugger
 
   const handleBuyNow = async () => {
 
-    const customerId = getCustomerId();
-
-    if (!customerId) {
-
-      Swal.fire({
-        icon: "warning",
-        title: "Login Required",
-        text: "Please login to continue.",
-      });
-
-      router.push("/Customer/login");
-
-      return;
-    }
-
     if (product?.TotalQuantity <= 0) {
 
       Swal.fire({
@@ -452,12 +389,11 @@ debugger
 
       const res = await Customer_Cart_Manage({
         TypeId: 1,
-        CustomerId: customerId,
         ProductId: Number(productId),
         Quantity: quantity,
       });
 
-      if (res?.Code === 1) {
+      if (res?.code === 1) {
 
         router.push("/cart");
 

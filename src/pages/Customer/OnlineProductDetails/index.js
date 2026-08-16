@@ -65,17 +65,6 @@ const OnlineProductList = () => {
   const [wishlistBusyId, setWishlistBusyId] = useState(null);
 
 
-  // ============================================================
-  // HELPER: Get logged-in CustomerId
-  // ============================================================
-
-  const getCustomerId = () => {
-
-    const id = sessionStorage.getItem("CustomerId");
-
-    return id ? Number(id) : null;
-  };
-
 
   // ============================================================
   // Load Categories
@@ -125,25 +114,15 @@ const OnlineProductList = () => {
 
   const loadWishlistIds = async () => {
 
-    const customerId = getCustomerId();
-
-    if (!customerId) {
-
-      setWishlistIds([]);
-
-      return;
-    }
-
-    try {
+     try {
 
       const res = await Customer_Wishlist_Manage({
         TypeId: 2,
-        CustomerId: customerId,
       });
 
-      if (res?.Code === 1 && Array.isArray(res?.Data)) {
+      if (res?.code === 1 && Array.isArray(res?.data)) {
 
-        setWishlistIds(res.Data.map((item) => item.ProductId));
+        setWishlistIds(res.data.map((item) => item.ProductId));
       }
 
     } catch (error) {
@@ -436,20 +415,6 @@ const OnlineProductList = () => {
 
     if (wishlistBusyId === productId) return;
 
-    const customerId = getCustomerId();
-
-    if (!customerId) {
-
-      Swal.fire({
-        icon: "warning",
-        title: "Login Required",
-        text: "Please login to add items to wishlist.",
-      });
-
-      router.push("/login");
-
-      return;
-    }
 
     try {
 
@@ -457,13 +422,12 @@ const OnlineProductList = () => {
 
       const res = await Customer_Wishlist_Manage({
         TypeId: 1,
-        CustomerId: customerId,
         ProductId: productId,
       });
 
-      if (res?.Code === 1) {
+      if (res?.code === 1) {
 
-        if (res.Data?.IsAdded) {
+        if (res.data?.isAdded) {
 
           setWishlistIds((prev) => [...prev, productId]);
 
@@ -471,10 +435,10 @@ const OnlineProductList = () => {
 
           setWishlistIds((prev) => prev.filter((id) => id !== productId));
         }
-
+debugger
         Swal.fire({
           icon: "success",
-          title: res.Data?.IsAdded
+          title: res.data?.isAdded
             ? "Added to Wishlist"
             : "Removed from Wishlist",
           timer: 1000,

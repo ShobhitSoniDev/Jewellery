@@ -185,7 +185,6 @@ export const GetOnline_ProductByProductId = async (
 
 export interface CustomerCartPayload {
   TypeId: number;
-  CustomerId: number;
   ProductId: number;
   Quantity: number;
 }
@@ -220,7 +219,6 @@ export const Customer_Cart_Manage = async (
 
 export interface CustomerWishlistPayload {
   TypeId: number;
-  CustomerId: number;
   ProductId: number;
 }
 
@@ -253,3 +251,41 @@ export const Customer_Wishlist_Manage = async (
 };
 
 
+export interface CustomerAddressPayload {
+  TypeId: number;          // 1=Add, 2=Update, 3=Delete, 4=Bind All
+  AddressId?: number;      // required for Update (2) / Delete (3)
+  AddressLabel?: string;   // "HOME" | "OFFICE" | "OTHER"
+  AddressLine?: string;
+  City?: string;
+  State?: string;
+  Pincode?: string;
+  IsDefault?: boolean;
+}
+
+export const Customer_Address_Manage = async (
+  payload: CustomerAddressPayload
+) => {
+  try {
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Customer.Customer_Address_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};

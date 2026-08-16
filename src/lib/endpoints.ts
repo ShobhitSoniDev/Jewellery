@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
   GetOnline_ProductByProductId_URL: "/Customer/GetOnline_ProductByProductId",
   Customer_Cart_Manage_URL: "/Customer/Customer_Cart_Manage",
   Customer_Wishlist_Manage_URL: "/Customer/Customer_Wishlist_Manage",
+  Customer_Address_Manage_URL: "/Customer/ManageCustomer_Address",
   }
   ,
   AI: {

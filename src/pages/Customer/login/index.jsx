@@ -192,7 +192,7 @@ debugger
           localStorage.removeItem("customerMobile");
         }
 
-        router.replace("/Customer/dashboard");
+        router.replace("/Customer/OnlineProductDetails");
         return;
       }
 

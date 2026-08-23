@@ -16,6 +16,7 @@ const EMPTY_FORM = {
   State: "",
   Pincode: "",
   IsDefault: false,
+  MobileNo:""
 };
 
 
@@ -131,6 +132,7 @@ const OnlineCustomerAddress = () => {
       AddressId: address.AddressId,
       AddressLabel: address.AddressLabel || "HOME",
       AddressLine: address.AddressLine || "",
+      MobileNo: address.MobileNo || "",
       City: address.City || "",
       State: address.State || "",
       Pincode: address.Pincode || "",
@@ -166,12 +168,12 @@ const OnlineCustomerAddress = () => {
 
     e.preventDefault();
 
-    if (!formData.AddressLine.trim() || !formData.City.trim() || !formData.Pincode.trim()) {
+    if (!formData.AddressLine.trim() || !formData.City.trim() || !formData.Pincode.trim() || !formData.MobileNo.trim()) {
 
       Swal.fire({
         icon: "warning",
         title: "Missing Details",
-        text: "Address, City and Pincode are required.",
+        text: "Address, Mobile No, City and Pincode are required.",
       });
 
       return;
@@ -189,6 +191,7 @@ const OnlineCustomerAddress = () => {
         CustomerId: customerId,
         AddressLabel: formData.AddressLabel || "HOME",
         AddressLine: formData.AddressLine,
+        MobileNo: formData.MobileNo,
         City: formData.City,
         State: formData.State,
         Pincode: formData.Pincode,
@@ -321,6 +324,7 @@ const OnlineCustomerAddress = () => {
         CustomerId: customerId,
         AddressLabel: address.AddressLabel,
         AddressLine: address.AddressLine,
+        MobileNo: formData.MobileNo,
         City: address.City,
         State: address.State,
         Pincode: address.Pincode,
@@ -428,6 +432,7 @@ const OnlineCustomerAddress = () => {
                 <p className="address-line">{address.AddressLine}</p>
 
                 <p className="address-meta">
+                  {address.MobileNo} {", "}
                   {address.City}
                   {address.State ? `, ${address.State}` : ""} -{" "}
                   {address.Pincode}
@@ -541,6 +546,22 @@ const OnlineCustomerAddress = () => {
                   />
 
                 </div>
+                 <div className="form-group">
+
+                    <label htmlFor="addr-mobileno">Mobile No *</label>
+
+                    <input
+                      id="addr-mobileno"
+                      type="text"
+                      placeholder="0000000000"
+                      value={formData.MobileNo}
+                      onChange={(e) =>
+                        handleFieldChange("MobileNo", e.target.value)
+                      }
+                      required
+                    />
+
+                  </div>
                 </div>
 
                 <div className="form-row">

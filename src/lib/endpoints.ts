@@ -50,6 +50,8 @@ export const API_ENDPOINTS = {
   Customer_Cart_Manage_URL: "/Customer/Customer_Cart_Manage",
   Customer_Wishlist_Manage_URL: "/Customer/Customer_Wishlist_Manage",
   Customer_Address_Manage_URL: "/Customer/ManageCustomer_Address",
+  Customer_Order_Place_URL: "/Customer/PlaceOrder",
+  Customer_Payment_Verify_URL: "/Customer/PaymentVerify",
   }
   ,
   AI: {

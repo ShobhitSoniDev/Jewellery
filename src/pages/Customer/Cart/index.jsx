@@ -411,7 +411,7 @@ const OnlineCartDetails = () => {
 
               <button
                 className="btn-checkout"
-                onClick={() => router.push("/checkout")}
+                onClick={() => router.push("OnlineCheckoutDetails")}
                 disabled={cartItems.every((i) => i.TotalQuantity <= 0)}
               >
                 Proceed to Buy

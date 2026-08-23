@@ -256,6 +256,7 @@ export interface CustomerAddressPayload {
   AddressId?: number;      // required for Update (2) / Delete (3)
   AddressLabel?: string;   // "HOME" | "OFFICE" | "OTHER"
   AddressLine?: string;
+  MobileNo?: string;
   City?: string;
   State?: string;
   Pincode?: string;
@@ -289,3 +290,118 @@ export const Customer_Address_Manage = async (
     throw error;
   }
 };
+
+// ============================================================
+// Add these into your existing @/lib/services/CustomerService.ts
+// (same file that already has Customer_Address_Manage)
+// Make sure `api` and `API_ENDPOINTS` are already imported/available
+// in that file, same as the Customer_Address_Manage function.
+// ============================================================
+
+
+// ------------------------------------------------------------
+// ORDER PLACE
+// TypeId: 1 = Place COD Order (finalizes immediately)
+//         2 = Create Online Order (creates a pending order +
+//             a Razorpay order, returns RazorpayOrderId to open
+//             the checkout modal on the client)
+// ------------------------------------------------------------
+
+export interface CustomerOrderItemPayload {
+  ProductId: number;
+  Quantity: number;
+}
+
+export interface CustomerOrderPlacePayload {
+  TypeId: number;                 // 1 = COD, 2 = Online (Razorpay)
+  AddressId: number;
+  PaymentMode: "COD" | "CARD" | "UPI" | "NETBANKING" | "WALLET";
+  Amount: number;
+  Items?: CustomerOrderItemPayload[]; // optional, if backend needs it explicitly
+}
+
+export const Customer_Order_Place = async (
+  payload: CustomerOrderPlacePayload
+) => {
+  try {
+
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Customer.Customer_Order_Place_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+
+// ------------------------------------------------------------
+// PAYMENT VERIFY
+// Called after Razorpay's `handler` callback fires on the client,
+// to verify razorpay_signature on the server (HMAC SHA256 using
+// your Razorpay key secret) before marking the order as paid.
+// ------------------------------------------------------------
+
+export interface CustomerPaymentVerifyPayload {
+  OrderId: number;
+  RazorpayOrderId: string;
+  RazorpayPaymentId: string;
+  RazorpaySignature: string;
+}
+
+export const Customer_Payment_Verify = async (
+  payload: CustomerPaymentVerifyPayload
+) => {
+  try {
+
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Customer.Customer_Payment_Verify_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};
+
+
+// ------------------------------------------------------------
+// Also add these two entries to your API_ENDPOINTS.Customer object,
+// alongside Customer_Address_Manage_URL:
+//
+// Customer_Order_Place_URL: "/Customer/OrderPlace",
+// Customer_Payment_Verify_URL: "/Customer/PaymentVerify",
+//
+// (adjust the actual route paths to match your backend)
+// ------------------------------------------------------------

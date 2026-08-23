@@ -11,6 +11,7 @@ import "../styles/Customer/layout.css";
 import "../styles/Customer/OnlineProductDetails.css";
 import "../styles/Customer/Wishlist.css";
 import "../styles/Customer/Address.css";
+import "../styles/Customer/OnlineCheckoutDetails.css";
 import Layout from '@/pages/layout'
 import LayoutCustomer from '@/pages/Customer/layout'
 import { useRouter } from "next/router";
@@ -21,7 +22,7 @@ export default function App({ Component, pageProps }) {
 
   // ❌ Layout Not Required Pages
   const noLayoutPages = ["/login", "/signup", "/Customer/login", "/Customer/dashboard", "/Customer/OnlineProductDetails", 
-    "/Customer/OnlineProductFullDetail", "/Customer/Cart", "/Customer/Wishlist", "/Customer/Address"];
+    "/Customer/OnlineProductFullDetail", "/Customer/Cart", "/Customer/Wishlist", "/Customer/Address", "/Customer/OnlineCheckoutDetails"];
 
    // 🔐 App start hote hi login par redirect
   useEffect(() => {

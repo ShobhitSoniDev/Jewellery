@@ -22,7 +22,7 @@ const OnlineProductFullDetail = () => {
   // ROUTE CONFIG
   // ============================================================
 
-  const PRODUCT_LIST_ROUTE = "OnlineProductDetails";
+  const PRODUCT_LIST_ROUTE = "/Customer/OnlineProductDetails";
 
   // ============================================================
   // STATE
@@ -67,8 +67,6 @@ const OnlineProductFullDetail = () => {
     try {
 
       setLoading(true);
-debugger
-
           const res = await GetOnline_ProductByProductId({
       ProductId: Number(productId),
     });
@@ -395,7 +393,7 @@ debugger
 
       if (res?.code === 1) {
 
-        router.push("/cart");
+        router.push("/Customer/Cart");
 
       } else {
 

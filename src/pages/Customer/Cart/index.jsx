@@ -280,7 +280,7 @@ const OnlineCartDetails = () => {
 
             <button
               className="btn-continue-shopping"
-              onClick={() => router.push("OnlineProductDetails")}
+              onClick={() => router.push("/Customer/OnlineProductDetails")}
             >
               Continue Shopping
             </button>
@@ -307,7 +307,7 @@ const OnlineCartDetails = () => {
                     className="cart-item-image"
                     onClick={() =>
                       router.push(
-                        `/OnlineProductFullDetail?ProductId=${item.ProductId}`
+                        `/Customer/OnlineProductFullDetail?ProductId=${item.ProductId}`
                       )
                     }
                   />
@@ -317,7 +317,7 @@ const OnlineCartDetails = () => {
                     <h3
                       onClick={() =>
                         router.push(
-                          `/OnlineProductFullDetail?ProductId=${item.ProductId}`
+                          `/Customer/OnlineProductFullDetail?ProductId=${item.ProductId}`
                         )
                       }
                     >
@@ -411,7 +411,7 @@ const OnlineCartDetails = () => {
 
               <button
                 className="btn-checkout"
-                onClick={() => router.push("OnlineCheckoutDetails")}
+                onClick={() => router.push("/Customer/OnlineCheckoutDetails")}
                 disabled={cartItems.every((i) => i.TotalQuantity <= 0)}
               >
                 Proceed to Buy
@@ -419,7 +419,7 @@ const OnlineCartDetails = () => {
 
               <button
                 className="btn-continue-shopping"
-                onClick={() => router.push("/OnlineProductDetails")}
+                onClick={() => router.push("/Customer/OnlineProductDetails")}
               >
                 Continue Shopping
               </button>

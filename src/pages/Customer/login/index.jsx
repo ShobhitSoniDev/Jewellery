@@ -178,7 +178,6 @@ const CustomerLogin = () => {
 
     try {
       const response = await LoginCustomerUser({ shopCode, mobile, password });
-debugger
       if (Number(response?.code) === 1) {
         sessionStorage.setItem("token", response.data.token);
         localStorage.setItem("customerName", response.data.UserName || "");

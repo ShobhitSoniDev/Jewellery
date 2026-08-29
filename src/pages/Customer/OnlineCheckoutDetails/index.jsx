@@ -50,16 +50,6 @@ const OnlineCheckoutDetails = () => {
   // "COD" | "CARD" | "UPI" | "NETBANKING" | "WALLET"
 
 
-  // ============================================================
-  // HELPER: Get logged-in CustomerId
-  // ============================================================
-
-  const getCustomerId = () => {
-
-    const id = 1;
-
-    return id ? Number(id) : null;
-  };
 
 
   // ============================================================
@@ -67,22 +57,6 @@ const OnlineCheckoutDetails = () => {
   // ============================================================
 
   const loadCheckoutData = async () => {
-
-    const customerId = getCustomerId();
-
-    if (!customerId) {
-
-      Swal.fire({
-        icon: "warning",
-        title: "Login Required",
-        text: "Please login to continue checkout.",
-      });
-
-      router.push("/Customer/login");
-
-      return;
-    }
-
     try {
 
       setLoading(true);
@@ -100,7 +74,7 @@ const OnlineCheckoutDetails = () => {
         setCartItems([]);
       }
 
-      await loadAddresses(customerId);
+      await loadAddresses();
 
     } catch (error) {
 
@@ -120,13 +94,12 @@ const OnlineCheckoutDetails = () => {
   };
 
 
-  const loadAddresses = async (customerId) => {
+  const loadAddresses = async () => {
 
     try {
 
       const res = await Customer_Address_Manage({
         TypeId: 4, // Bind All
-        CustomerId: customerId,
       });
 
       if (res?.code === 1 && Array.isArray(res?.data)) {
@@ -258,7 +231,6 @@ const OnlineCheckoutDetails = () => {
       return;
     }
 
-    const customerId = getCustomerId();
 
     try {
 
@@ -267,7 +239,6 @@ const OnlineCheckoutDetails = () => {
       const res = await Customer_Address_Manage({
         TypeId: 1, // Add
         AddressId: 0,
-        CustomerId: customerId,
         AddressLabel: addressFormData.AddressLabel || "HOME",
         AddressLine: addressFormData.AddressLine,
         MobileNo: addressFormData.MobileNo,
@@ -291,7 +262,6 @@ const OnlineCheckoutDetails = () => {
         // reload list, then select the newly added address
         const refreshed = await Customer_Address_Manage({
           TypeId: 4,
-          CustomerId: customerId,
         });
 
         if (refreshed?.code === 1 && Array.isArray(refreshed?.data)) {
@@ -413,7 +383,7 @@ const OnlineCheckoutDetails = () => {
           showConfirmButton: false,
         });
 
-        router.push(`/OrderConfirmation?OrderId=${res?.data?.OrderId || ""}`);
+        router.push(`/Customer/OrderConfirmation?OrderId=${res?.data?.OrderId || ""}`);
 
       } else {
 
@@ -459,7 +429,6 @@ const OnlineCheckoutDetails = () => {
         PaymentMode: paymentMethod, // "CARD" | "UPI" | "NETBANKING" | "WALLET"
         Amount: Number(getGrandTotal()),
       });
-debugger
       if (orderRes?.code !== 1 || !orderRes?.data?.razorpayOrderId) {
 
         Swal.fire({
@@ -575,7 +544,7 @@ debugger
           showConfirmButton: false,
         });
 
-        router.push(`OrderConfirmation?OrderId=${orderId}`);
+        router.push(`/Customer/OrderConfirmation?OrderId=${orderId}`);
 
       } else {
 
@@ -644,7 +613,7 @@ debugger
 
             <button
               className="btn-continue-shopping"
-              onClick={() => router.push("/OnlineProductDetails")}
+              onClick={() => router.push("/Customer/OnlineProductDetails")}
             >
               Continue Shopping
             </button>
@@ -844,8 +813,8 @@ debugger
                   {paymentMethod !== "COD" && (
 
                     <p className="razorpay-note">
-                      🔒 Secured by Razorpay. You'll complete this payment in
-                      a secure window after clicking "Place Order".
+                      🔒 Secured by Razorpay. You&apos;ll complete this payment in
+                      a secure window after clicking &quot;Place Order&quot;.
                     </p>
 
                   )}

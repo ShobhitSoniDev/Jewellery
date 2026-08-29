@@ -395,6 +395,19 @@ export const Customer_Payment_Verify = async (
   }
 };
 
+export interface CustomerOrderManagePayload {
+  TypeId: number;
+  OrderId?: number | string;
+}
+
+export const Customer_Order_Manage = async (payload: CustomerOrderManagePayload) => {
+  const token = sessionStorage.getItem("token");
+  const response = await api.post(API_ENDPOINTS.Customer.Customer_Order_Manage_URL, payload, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  return response.data;
+};
+
 
 // ------------------------------------------------------------
 // Also add these two entries to your API_ENDPOINTS.Customer object,

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- this layout hydrates auth and cached customer data from browser storage. */
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -43,9 +44,9 @@ import {
 // Fallback nav used only if the menu API returns nothing (or fails)
 const DEFAULT_NAV_ITEMS = [
   { MenuId: 1, MenuName: "Home", MenuUrl: "/Customer/OnlineProductDetails" },
-  { MenuId: 2, MenuName: "Shop", MenuUrl: "/OnlineProductList" },
-  { MenuId: 3, MenuName: "My Orders", MenuUrl: "/Customer/orders" },
-  { MenuId: 4, MenuName: "Support", MenuUrl: "/Customer/support" },
+  { MenuId: 2, MenuName: "Shop", MenuUrl: "/Customer/OnlineProductDetails" },
+  { MenuId: 3, MenuName: "My Orders", MenuUrl: "/Customer/Orders" },
+  { MenuId: 4, MenuName: "Addresses", MenuUrl: "/Customer/Address" },
 ];
 
 
@@ -98,22 +99,7 @@ export default function CustomerLayout({ children }) {
   }, [router]);
 
 
-  // ── Once authorized, show cached values instantly, then refresh ──
-  useEffect(() => {
-
-    if (!isAuthorized) return;
-
-    setCustomerName(localStorage.getItem("customerName") || "");
-    setShopName(localStorage.getItem("ShopName") || "");
-    setShopLogo(localStorage.getItem("ShopLogo") || "");
-
-    loadMenuItems();
-    loadCartAndWishlistCount();
-
-  }, [isAuthorized]);
-
-
-  const loadMenuItems = async () => {
+  async function loadMenuItems() {
 
     try {
 
@@ -132,11 +118,11 @@ export default function CustomerLayout({ children }) {
 
       console.error("Error loading customer menu items:", error);
     }
-  };
+  }
 
 
   // ── Cart / Wishlist counts for header badges ──
-  const loadCartAndWishlistCount = async () => {
+  async function loadCartAndWishlistCount() {
 
 
 
@@ -146,9 +132,9 @@ export default function CustomerLayout({ children }) {
         TypeId: 2,
       });
 
-      if (cartRes?.Code === 1 && Array.isArray(cartRes?.Data)) {
+      if (Number(cartRes?.code ?? cartRes?.Code) === 1 && Array.isArray(cartRes?.data ?? cartRes?.Data)) {
 
-        setCartCount(cartRes.Data.length);
+        setCartCount((cartRes.data ?? cartRes.Data).length);
       }
 
     } catch (error) {
@@ -162,16 +148,27 @@ export default function CustomerLayout({ children }) {
         TypeId: 2,
       });
 
-      if (wishlistRes?.Code === 1 && Array.isArray(wishlistRes?.Data)) {
+      if (Number(wishlistRes?.code ?? wishlistRes?.Code) === 1 && Array.isArray(wishlistRes?.data ?? wishlistRes?.Data)) {
 
-        setWishlistCount(wishlistRes.Data.length);
+        setWishlistCount((wishlistRes.data ?? wishlistRes.Data).length);
       }
 
     } catch (error) {
 
       console.error("Wishlist count load error:", error);
     }
-  };
+  }
+
+  // ── Once authorized, show cached values instantly, then refresh ──
+  useEffect(() => {
+    if (!isAuthorized) return;
+
+    setCustomerName(localStorage.getItem("customerName") || "");
+    setShopName(localStorage.getItem("ShopName") || "");
+    setShopLogo(localStorage.getItem("ShopLogo") || "");
+    loadMenuItems();
+    loadCartAndWishlistCount();
+  }, [isAuthorized]);
 
 
   // ── Close account dropdown on outside click ──
@@ -211,7 +208,7 @@ export default function CustomerLayout({ children }) {
 
     if (!searchText.trim()) return;
 
-    router.push(`Customer/OnlineProductList?search=${encodeURIComponent(searchText.trim())}`);
+    router.push(`/Customer/OnlineProductDetails?search=${encodeURIComponent(searchText.trim())}`);
 
     setSearchText("");
     closeMobileMenu();
@@ -228,24 +225,19 @@ export default function CustomerLayout({ children }) {
 
       const shopCode = localStorage.getItem("shopCode");
 
-      const response = await CustomerLogoutUser(payload);
-
-      if (response?.code === 1) {
-
-        sessionStorage.clear();
-
-        router.push(
-          shopCode && shopCode !== "undefined" && shopCode !== "null"
-            ? `/Customer/login?SC=${encodeURIComponent(shopCode)}`
-            : "/Customer/login"
-        );
-      }
+      await CustomerLogoutUser(payload);
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("customerId");
+      localStorage.removeItem("customerName");
+      localStorage.removeItem("customerAllowedMenus");
+      router.replace(shopCode && shopCode !== "undefined" && shopCode !== "null"
+        ? `/Customer/login?SC=${encodeURIComponent(shopCode)}` : "/Customer/login");
 
     } catch (error) {
 
-      sessionStorage.clear();
-
-      router.push("/Customer/login");
+      sessionStorage.removeItem("token");
+      router.replace("/Customer/login");
     }
   };
 
@@ -360,7 +352,7 @@ export default function CustomerLayout({ children }) {
               <FaBell />
             </button>
 
-            <Link href="Wishlist" className="custHeaderIconBtn" aria-label="Wishlist">
+            <Link href="/Customer/Wishlist" className="custHeaderIconBtn" aria-label="Wishlist">
 
               <FaHeart />
 
@@ -370,7 +362,7 @@ export default function CustomerLayout({ children }) {
 
             </Link>
 
-            <Link href="Cart" className="custHeaderIconBtn" aria-label="Cart">
+            <Link href="/Customer/Cart" className="custHeaderIconBtn" aria-label="Cart">
 
               <FaShoppingBag />
 
@@ -422,35 +414,35 @@ export default function CustomerLayout({ children }) {
                   <div className="custAccountDropdownList">
 
                     <Link
-                      href="/Customer/profile"
+                      href="/Customer/Profile"
                       onClick={() => setIsAccountOpen(false)}
                     >
                       <FaUserCircle /> My Profile
                     </Link>
 
                     <Link
-                      href="/Customer/orders"
+                      href="/Customer/Orders"
                       onClick={() => setIsAccountOpen(false)}
                     >
                       <FaBoxOpen /> My Orders
                     </Link>
 
                     <Link
-                      href="/Customer/addresses"
+                      href="/Customer/Address"
                       onClick={() => setIsAccountOpen(false)}
                     >
                       <FaMapMarkerAlt /> My Addresses
                     </Link>
 
                     <Link
-                      href="Wishlist"
+                      href="/Customer/Wishlist"
                       onClick={() => setIsAccountOpen(false)}
                     >
                       <FaHeart /> My Wishlist
                     </Link>
 
                     <Link
-                      href="Cart"
+                      href="/Customer/Cart"
                       onClick={() => setIsAccountOpen(false)}
                     >
                       <FaShoppingBag /> My Cart
@@ -539,7 +531,7 @@ export default function CustomerLayout({ children }) {
 
         <div className="custMobileDrawerQuickActions">
 
-          <Link href="Wishlist" onClick={closeMobileMenu}>
+          <Link href="/Customer/Wishlist" onClick={closeMobileMenu}>
 
             <FaHeart />
             <span>Wishlist</span>
@@ -550,7 +542,7 @@ export default function CustomerLayout({ children }) {
 
           </Link>
 
-          <Link href="Cart" onClick={closeMobileMenu}>
+          <Link href="/Customer/Cart" onClick={closeMobileMenu}>
 
             <FaShoppingBag />
             <span>Cart</span>
@@ -589,7 +581,7 @@ export default function CustomerLayout({ children }) {
           <div className="custMobileDrawerDivider" />
 
           <Link
-            href="/Customer/profile"
+            href="/Customer/Profile"
             className="custMobileDrawerLink"
             onClick={closeMobileMenu}
           >
@@ -597,7 +589,7 @@ export default function CustomerLayout({ children }) {
           </Link>
 
           <Link
-            href="/Customer/orders"
+            href="/Customer/Orders"
             className="custMobileDrawerLink"
             onClick={closeMobileMenu}
           >
@@ -605,7 +597,7 @@ export default function CustomerLayout({ children }) {
           </Link>
 
           <Link
-            href="/Customer/addresses"
+            href="/Customer/Address"
             className="custMobileDrawerLink"
             onClick={closeMobileMenu}
           >

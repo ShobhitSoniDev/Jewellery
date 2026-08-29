@@ -87,3 +87,56 @@ export const SignUpCustomer = async (payload: SignUpCustomerPayload) => {
   return { code: 0, message: "SignUp failed" };
 }
 };
+
+export interface CustomerLogoutPayload {
+  CustomerId: string;
+}
+
+export const CustomerLogoutUser = async (payload: CustomerLogoutPayload) => {
+  try {
+    const token = sessionStorage.getItem("token");
+    const response = await api.post(API_ENDPOINTS.AUTH.LOGOUTCustomer_URL, payload, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    return response.data;
+  } catch (error: any) {
+    // Local logout must still succeed if the server session has already expired.
+    return { code: 0, message: error?.response?.data?.message || "Logout failed" };
+  }
+};
+
+
+export interface CustomerOrderManagePayload {
+  TypeId: number;      // 1 = Get single order + items, 2 = List all orders
+  OrderId?: number;    // required for TypeId 1
+}
+
+export const Customer_Order_Manage = async (
+  payload: CustomerOrderManagePayload
+) => {
+  try {
+
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem("token");
+
+    // Call API with Authorization header
+    const response = await api.post(
+      API_ENDPOINTS.Customer.Customer_Order_Manage_URL,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+
+  } catch (error) {
+
+    console.log("ERROR FULL => ", error?.response);
+    console.log("ERROR DATA => ", error?.response?.data);
+    throw error;
+  }
+};

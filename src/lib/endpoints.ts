@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     SignUp_URL: "/auth/signup",
     LOGINCustomer_URL: "/auth/loginCustomer",
     SignUpCustomer_URL: "/auth/signupCustomer",
+    LOGOUTCustomer_URL: "/auth/logoutCustomer",
   },
   Master: {
     GetMenu_URL: "/master/GetMenu",
@@ -52,6 +53,7 @@ export const API_ENDPOINTS = {
   Customer_Address_Manage_URL: "/Customer/ManageCustomer_Address",
   Customer_Order_Place_URL: "/Customer/PlaceOrder",
   Customer_Payment_Verify_URL: "/Customer/PaymentVerify",
+  Customer_Order_Manage_URL: "/Customer/Customer_Order_Manage",
   }
   ,
   AI: {

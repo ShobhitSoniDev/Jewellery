@@ -435,7 +435,6 @@ const OnlineProductList = () => {
 
           setWishlistIds((prev) => prev.filter((id) => id !== productId));
         }
-debugger
         Swal.fire({
           icon: "success",
           title: res.data?.isAdded
@@ -773,7 +772,7 @@ debugger
 
             <h2>No Products Found</h2>
 
-            <p>We couldn't find any products matching your filters.</p>
+            <p>We couldn&apos;t find any products matching your filters.</p>
 
             <button onClick={clearFilters}>Clear Filters</button>
 

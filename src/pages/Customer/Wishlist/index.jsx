@@ -267,7 +267,7 @@ const OnlineWishlistDetails = () => {
 
             <button
               className="btn-continue-shopping"
-              onClick={() => router.push("/OnlineProductDetails")}
+              onClick={() => router.push("/Customer/OnlineProductDetails")}
             >
               Continue Shopping
             </button>
@@ -289,7 +289,7 @@ const OnlineWishlistDetails = () => {
                     alt={item.ProductName}
                     onClick={() =>
                       router.push(
-                        `/OnlineProductFullDetail?ProductId=${item.ProductId}`
+                        `/Customer/OnlineProductFullDetail?ProductId=${item.ProductId}`
                       )
                     }
                   />
@@ -310,7 +310,7 @@ const OnlineWishlistDetails = () => {
                   <h3
                     onClick={() =>
                       router.push(
-                        `/OnlineProductFullDetail?ProductId=${item.ProductId}`
+                        `/Customer/OnlineProductFullDetail?ProductId=${item.ProductId}`
                       )
                     }
                   >

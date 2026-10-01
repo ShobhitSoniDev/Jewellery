@@ -167,57 +167,65 @@ const BillGenerate = () => {
 
   // ── Submit → Bill Generate ────────────────────────────────────────────────
   const handleGenerateBill = async () => {
-    if (!handleValidation()) return;
+  if (!handleValidation()) return;
 
-    try {
-      setLoading(true);
+  // Step 1: User click ke turant baad (synchronously) blank tab khol do
+  // Isse browser ise genuine user action maanta hai, popup block nahi karega
+  const newTab = window.open("", "_blank");
 
-      const payload = {
-        customerCode: CustomerCode,
-        description: description,
-        language: language,
-      };
+  try {
+    setLoading(true);
 
-      const result = await CustomerBillGenerate(payload);
+    const payload = {
+      customerCode: CustomerCode,
+      description: description,
+      language: language,
+    };
 
-      if (result?.code === 1) {
-        // Blob URL banao — popup blocker se bachne ke liye
+    const result = await CustomerBillGenerate(payload);
 
-        const blobUrl = result?.data;
+    if (result?.code === 1) {
+      const blobUrl = result?.data;
 
-        const newTab = window.open(blobUrl, "_blank");
-
-        // Agar browser ne tab block kar diya — fallback download
-        if (!newTab) {
-          await Swal.fire({
-            icon: "warning",
-            title: "Popup Blocked",
-            text: "Browser ne new tab block kar diya. Bill download ho raha hai.",
-            confirmButtonText: "OK",
-          });
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = `Bill_${CustomerCode}_${Date.now()}.html`;
-          a.click();
-        }
-
-        // Memory free karo
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      if (newTab) {
+        // Tab pehle se khula hai, ab sirf URL set karo
+        newTab.location.href = blobUrl;
       } else {
+        // Sach me popup block hua tab hi ye chalega
         await Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: result?.message || "Bill generate failed",
+          icon: "warning",
+          title: "Popup Blocked",
+          text: "Browser ne new tab block kar diya. Bill download ho raha hai.",
+          confirmButtonText: "OK",
         });
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `Bill_${CustomerCode}_${Date.now()}.html`;
+        a.click();
       }
-    } catch (err) {
-      console.error(err);
-      await Swal.fire({ icon: "error", title: "Error", text: "Something went wrong" });
-    } finally {
-      setLoading(false);
-    }
-  };
 
+      // Memory free karo
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } else {
+      // API fail hui to khali tab band kar do
+      newTab?.close();
+
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: result?.message || "Bill generate failed",
+      });
+    }
+  } catch (err) {
+    // Error aaya to bhi khali tab band kar do
+    newTab?.close();
+
+    console.error(err);
+    await Swal.fire({ icon: "error", title: "Error", text: "Something went wrong" });
+  } finally {
+    setLoading(false);
+  }
+};
   // ── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = () => {
     setCustomerCode("");

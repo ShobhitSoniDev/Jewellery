@@ -98,7 +98,7 @@ textarea {
 /* Responsive app foundation */
 .content-wrapper {
   width: 100%;
-  max-width: 1380px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -118,6 +118,12 @@ textarea {
 
 .form-card {
   border: 1px solid rgba(229, 231, 235, 0.85);
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 32px;
+  border-radius: 14px;
+  background: var(--app-surface);
 }
 
 .form-card h2,
@@ -125,15 +131,35 @@ textarea {
   line-height: 1.2;
 }
 
+/* ---------- FORM LAYOUT: 2 fields per row, half-half, full page width ---------- */
+
 .form-row {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  margin-bottom: 16px;
+  display: flex !important;
+  width: 100% !important;
+  gap: 20px !important;
+  align-items: flex-start !important;
+  margin-bottom: 14px !important;
+  flex-wrap: nowrap !important;
+}
+
+.form-row > .form-group {
+  flex: 1 1 50% !important;
+  max-width: 50% !important;
+  width: 50% !important;
+  min-width: 0 !important;
 }
 
 .form-group {
   min-width: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--app-text);
+  margin-bottom: 5px;
+  letter-spacing: 0.3px;
 }
 
 .form-group input,
@@ -142,9 +168,11 @@ textarea {
 .dropdown-select,
 .form-control {
   width: 100%;
-  min-height: 44px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1.5px solid #d1d5db;
   background: #ffffff;
   color: var(--app-text);
 }
@@ -154,16 +182,17 @@ textarea {
 .form-group textarea:focus,
 .dropdown-select:focus,
 .form-control:focus {
-  border-color: rgba(214, 154, 50, 0.8);
+  border-color: var(--app-gold);
   outline: none;
-  box-shadow: 0 0 0 4px rgba(214, 154, 50, 0.12);
+  box-shadow: 0 0 0 4px rgba(214, 154, 50, 0.15);
 }
 
 .form-group p,
 p[style*="red"] {
   min-height: 18px;
-  margin-top: 5px;
+  margin-top: 6px;
   font-size: 13px;
+  color: var(--app-danger, red);
 }
 
 .btn-group,
@@ -172,9 +201,10 @@ p[style*="red"] {
 .headerActions,
 .jd-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
   align-items: center;
+  margin-top: 28px;
 }
 
 .btn-primary,
@@ -188,9 +218,11 @@ p[style*="red"] {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: 46px;
+  padding: 0 28px;
   border-radius: 10px;
   font-weight: 700;
+  font-size: 15px;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -198,6 +230,7 @@ p[style*="red"] {
 .btn-edit-grid,
 .btn-danger-grid {
   min-height: 34px;
+  padding: 8px 12px;
 }
 
 .table-card,
@@ -299,16 +332,32 @@ td:last-child {
     margin-bottom: 18px;
   }
 
+  /* Mobile: ek row me ek hi field, full width */
   .form-row {
-    flex-direction: column;
-    gap: 0;
-    margin-bottom: 0;
+    flex-direction: column !important;
+    gap: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .form-row > .form-group {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 
   .form-group {
     width: 100%;
     max-width: 100%;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea,
+  .dropdown-select,
+  .form-control {
+    min-height: 40px;
+    font-size: 16px;
   }
 
   .btn-group,
@@ -415,21 +464,9 @@ div {
   margin: 0 auto 24px;
 }
 
-.form-row > .form-group {
-  flex: 1 1 0;
-}
-
 .form-group,
 .form-group > div {
   min-width: 0;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea,
-.dropdown-select,
-.form-control {
-  padding: 10px 12px;
 }
 
 .table-card,
@@ -513,15 +550,6 @@ div {
 
   .form-group {
     max-width: 100%;
-  }
-
-  .form-group input,
-  .form-group select,
-  .form-group textarea,
-  .dropdown-select,
-  .form-control {
-    min-height: 44px;
-    font-size: 16px;
   }
 
   .table-card,
